@@ -1,4 +1,5 @@
 import json
+import struct
 from pathlib import Path
 
 from PIL import Image
@@ -64,3 +65,19 @@ def make_old_package(root, suffixes=("A7APC", "A7APD"), dds_bytes=b"",
     (pkg / "manifest.json").write_text(json.dumps(OLD_MANIFEST))
     (pkg / "layout.json").write_text('{"content": []}')
     return pkg
+
+
+def _bc3_block(r=200, g=30, b=30, alpha=255):
+    c565 = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
+    return struct.pack("<BB6x", alpha, alpha) + struct.pack("<HH4x", c565, c565)
+
+
+def make_bc3_dds(width, height, alpha=255):
+    blocks_x = max(1, (width + 3) // 4)
+    blocks_y = max(1, (height + 3) // 4)
+    payload = _bc3_block(alpha=alpha) * (blocks_x * blocks_y)
+    ddsd_flags = 0x1 | 0x2 | 0x4 | 0x1000 | 0x80000  # CAPS|HEIGHT|WIDTH|PIXELFORMAT|LINEARSIZE
+    header = struct.pack("<7I44x", 124, ddsd_flags, height, width, len(payload), 0, 1)
+    pixelformat = struct.pack("<II4s20x", 32, 0x4, b"DXT5")  # DDPF_FOURCC
+    caps = struct.pack("<I16x", 0x1000)  # DDSCAPS_TEXTURE
+    return b"DDS " + header + pixelformat + caps + payload
