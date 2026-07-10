@@ -68,3 +68,20 @@ def test_dry_run_writes_nothing(tmp_path):
     assert not out.exists()
     assert result.converted == 0
     assert any("dry-run" in w for w in result.warnings)
+
+
+def test_unexpected_texture_error_is_caught_and_warned(tmp_path, monkeypatch):
+    """Regression test: converter should catch Exception (not just specific types) in texture jobs."""
+    pkg = make_old_package(tmp_path, suffixes=("X",), dds_bytes=make_bc3_dds(8, 8),
+                           with_common=False)
+
+    # Monkeypatch convert_texture to raise RuntimeError
+    def failing_convert_texture(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("a380x_livery_converter.converter.convert_texture",
+                        failing_convert_texture)
+
+    result = Converter(pkg, tmp_path / "out").run()
+    assert result.skipped >= 1
+    assert any("boom" in w for w in result.warnings)

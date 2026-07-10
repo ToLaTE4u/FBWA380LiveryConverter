@@ -11,9 +11,7 @@ from typing import Callable
 from a380x_livery_converter.core.rename_map import load_rename_map, map_texture_filename
 from a380x_livery_converter.core.scanner import Variant, scan_package
 from a380x_livery_converter.output import livery_gen, package_gen
-from a380x_livery_converter.texture.dds import DdsError
 from a380x_livery_converter.texture.pipeline import convert_texture
-from a380x_livery_converter.texture.texconv import TexconvError
 
 ProgressCallback = Callable[[int, int, str], None]
 
@@ -70,7 +68,7 @@ class Converter:
                 warnings.append(f"{variant.title}: custom MODEL folder cannot be converted "
                                 f"- decals/3D additions are lost")
             if variant.texture_dir is None:
-                warnings.append(f"{variant.title}: no texture folder found - variant skipped")
+                warnings.append(f"{variant.title}: no texture folder found - variant has no own textures")
                 continue
             for src in _dds_files(variant.texture_dir):
                 name = self._mapped(src.name, rename_map, warnings)
@@ -110,7 +108,7 @@ class Converter:
                 try:
                     future.result()
                     converted += 1
-                except (DdsError, TexconvError, OSError, ValueError) as exc:
+                except Exception as exc:
                     skipped += 1
                     warnings.append(f"Texture skipped ({job.label}): {exc}")
                 done += 1
