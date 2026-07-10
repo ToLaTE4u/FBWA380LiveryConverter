@@ -1,0 +1,23 @@
+[project]
+name = "a380x-livery-converter"
+version = "0.1.0"
+description = "Convert FBW A380X MSFS 2020 liveries to native MSFS 2024 packages"
+requires-python = ">=3.12"
+dependencies = [
+    "pillow>=10.0",
+    "texture2ddecoder>=1.0.4",
+    "typer>=0.12",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/a380x_livery_converter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
