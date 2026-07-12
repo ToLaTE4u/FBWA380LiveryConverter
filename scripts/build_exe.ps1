@@ -14,4 +14,8 @@ uv run python -m nuitka `
     --output-dir=dist `
     src/a380x_livery_converter/__main__.py
 
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Nuitka build failed with exit code $LASTEXITCODE"
+    exit $LASTEXITCODE
+}
 Write-Host "Built dist/A380XLiveryConverter.exe"
