@@ -50,6 +50,18 @@ def test_find_old_thumbnail_case_insensitive(tmp_path):
     assert find_old_thumbnail(None) is None
 
 
+def test_find_old_thumbnail_ignores_directory(tmp_path):
+    (tmp_path / "THUMBNAIL.JPG").mkdir()
+    assert find_old_thumbnail(tmp_path) is None
+
+
+def test_find_old_thumbnail_skips_directory_finds_real_file(tmp_path):
+    (tmp_path / "THUMBNAIL.JPG").mkdir()
+    Image.new("RGB", (100, 50), "blue").save(tmp_path / "THUMBNAIL.PNG")
+    found = find_old_thumbnail(tmp_path)
+    assert found is not None and found.name == "THUMBNAIL.PNG"
+
+
 def test_write_thumbnails_from_source(tmp_path):
     src = tmp_path / "thumbnail.JPG"
     Image.new("RGB", (412, 170), "blue").save(src)

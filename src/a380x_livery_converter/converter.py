@@ -148,8 +148,10 @@ class Converter:
             done += 1
             self.progress(done, total, f"Config for {variant.title}")
 
+        mappings = [f"{job.src.name} -> {job.dest.relative_to(out_root).as_posix()}"
+                   for job in jobs]
         package_gen.write_report(out_root, warnings, converted=converted,
-                                 skipped=skipped, source=old)
+                                 skipped=skipped, source=old, mappings=mappings)
         package_gen.write_layout(out_root)
         done += 1
         self.progress(done, total, "layout.json")

@@ -33,7 +33,9 @@ def test_full_conversion_structure(tmp_path):
     assert result.skipped == 0
     assert (root / "manifest.json").is_file()
     assert (root / "layout.json").is_file()
-    assert (root / "conversion_report.txt").is_file()
+    report_path = root / "conversion_report.txt"
+    assert report_path.is_file()
+    assert "->" in report_path.read_text()
     assert progress_calls, "progress callback was never invoked"
 
 

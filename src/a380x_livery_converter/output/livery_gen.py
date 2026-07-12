@@ -51,7 +51,7 @@ def find_old_thumbnail(texture_dir: Path | None) -> Path | None:
     if texture_dir is None or not Path(texture_dir).is_dir():
         return None
     for child in Path(texture_dir).iterdir():
-        if child.name.upper() in _THUMBNAIL_NAMES:
+        if child.name.upper() in _THUMBNAIL_NAMES and child.is_file():
             return child
     return None
 

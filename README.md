@@ -23,6 +23,9 @@ Exit codes: 0 = ok, 1 = finished with warnings, 2 = error.
 - Fleet packs are merged into one output package; identical textures are
   deduplicated into a shared `common/texture` folder.
 - Input must be an extracted folder (no zip support).
+- On machines without a suitable GPU, texture conversion falls back to
+  `texconv`'s CPU BC7 encoder, which is much slower (minutes vs. seconds per
+  4K texture) than the GPU path.
 
 ## Development
 

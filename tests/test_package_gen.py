@@ -67,3 +67,22 @@ def test_report_lists_warnings(tmp_path):
     text = path.read_text()
     assert "warn one" in text and "warn two" in text
     assert "5" in text and "Fleet Pack" in text
+
+
+def test_report_lists_mappings(tmp_path):
+    path = write_report(tmp_path, [], converted=1, skipped=0, source=_old_package(),
+                        mappings=["A.PNG.DDS -> flybywire/x/texture/A.PNG.KTX2"])
+    text = path.read_text()
+    assert "Mappings:" in text
+    assert "A.PNG.DDS -> flybywire/x/texture/A.PNG.KTX2" in text
+
+
+def test_report_omits_mappings_section_when_absent_or_empty(tmp_path):
+    path = write_report(tmp_path, [], converted=1, skipped=0, source=_old_package())
+    text = path.read_text()
+    assert "Mappings:" not in text
+
+    path = write_report(tmp_path, [], converted=1, skipped=0, source=_old_package(),
+                        mappings=[])
+    text = path.read_text()
+    assert "Mappings:" not in text

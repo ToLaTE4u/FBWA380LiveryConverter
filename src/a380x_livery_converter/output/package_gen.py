@@ -44,7 +44,8 @@ def write_layout(root: Path) -> None:
             "size": stat.st_size,
             "date": filetime_from_unix(stat.st_mtime),
         })
-    (root / "layout.json").write_text(json.dumps({"content": entries}, indent=2))
+    (root / "layout.json").write_text(json.dumps({"content": entries}, indent=2),
+                                      encoding="utf-8")
 
 
 def write_manifest(root: Path, title: str, creator: str, version: str) -> None:
@@ -61,11 +62,11 @@ def write_manifest(root: Path, title: str, creator: str, version: str) -> None:
         "minimum_game_version": "1.26.5",
         "total_package_size": f"{total:020d}",
     }
-    (root / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    (root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
 def write_report(root: Path, warnings: list[str], converted: int, skipped: int,
-                 source: OldPackage) -> Path:
+                 source: OldPackage, mappings: list[str] | None = None) -> Path:
     lines = [
         "A380X Livery Converter - conversion report",
         "=" * 44,
@@ -81,6 +82,10 @@ def write_report(root: Path, warnings: list[str], converted: int, skipped: int,
         lines.extend(f"  - {w}" for w in warnings)
     else:
         lines.append("No warnings.")
+    if mappings:
+        lines.append("")
+        lines.append("Mappings:")
+        lines.extend(f"  - {m}" for m in mappings)
     lines += ["", "Note: interior/cabin textures are converted as-is; whether the native",
               "2024 model actually uses them is outside this tool's control."]
     path = Path(root) / "conversion_report.txt"
