@@ -1,6 +1,7 @@
 from typer.testing import CliRunner
 
 from a380x_livery_converter.cli import app
+from a380x_livery_converter.converter import Converter
 from tests.helpers import make_bc3_dds, make_old_package
 
 runner = CliRunner()
@@ -33,6 +34,19 @@ def test_dry_run_writes_nothing(tmp_path):
     result = runner.invoke(app, [str(pkg), "-o", str(tmp_path / "out"), "--dry-run"])
     assert result.exit_code == 1  # dry-run-Hinweis ist eine Warnung
     assert not (tmp_path / "out").exists()
+
+
+def test_unexpected_error_exits_2_without_traceback(tmp_path, monkeypatch):
+    def raise_permission_error(self):
+        raise PermissionError("locked")
+
+    monkeypatch.setattr(Converter, "run", raise_permission_error)
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    result = runner.invoke(app, [str(pkg), "-o", str(tmp_path / "out")])
+    assert result.exit_code == 2
+    assert "Traceback" not in result.output
+    assert "Unexpected error" in result.output
 
 
 def test_verbose_shows_progress(tmp_path):

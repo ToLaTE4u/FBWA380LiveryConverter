@@ -29,6 +29,9 @@ def convert(
     except NotAnA380XPackageError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2)
+    except Exception as exc:
+        typer.secho(f"Unexpected error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2)
     typer.echo(f"Output: {result.output_root}")
     typer.echo(f"Converted textures: {result.converted}, skipped: {result.skipped}")
     for warning in result.warnings:
