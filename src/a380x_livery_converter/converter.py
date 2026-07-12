@@ -29,11 +29,34 @@ class _TextureJob:
     src: Path
     dest: Path
     label: str
+    digest: str
+    # Set only for jobs whose dest was chosen by the "identical file shared
+    # by multiple variants" dedup step: the (variant, src) pairs that all
+    # produced this exact content, needed to relocate per-variant on collision.
+    group: list[tuple[Variant, Path]] | None = None
 
 
 def _dds_files(folder: Path) -> list[Path]:
     return sorted(p for p in Path(folder).iterdir()
                   if p.is_file() and p.name.upper().endswith(".DDS"))
+
+
+def _assign_folder_names(variants: list[Variant]) -> dict[int, str]:
+    """Map id(variant) -> livery folder name, disambiguating collisions.
+
+    package_gen.livery_folder_name() can return the same name for two
+    different variants (e.g. two [FLTSIM] sections sharing a texture
+    suffix). The first variant to produce a given base name keeps it
+    unchanged; later collisions get a "_1", "_2", ... suffix.
+    """
+    seen: dict[str, int] = {}
+    names: dict[int, str] = {}
+    for variant in variants:
+        base = package_gen.livery_folder_name(variant)
+        count = seen.get(base, 0)
+        names[id(variant)] = base if count == 0 else f"{base}_{count}"
+        seen[base] = count + 1
+    return names
 
 
 class Converter:
@@ -55,11 +78,14 @@ class Converter:
         flybywire_root = out_root / package_gen.LIVERIES_SUBPATH / "flybywire"
         common_texture = out_root / package_gen.LIVERIES_SUBPATH / "common" / "texture"
 
+        folder_names = _assign_folder_names(old.variants)
+
         jobs: list[_TextureJob] = []
         if old.common_texture_dir is not None:
             for src in _dds_files(old.common_texture_dir):
                 name = self._mapped(src.name, rename_map, warnings)
-                jobs.append(_TextureJob(src, common_texture / name, f"common/{src.name}"))
+                digest = hashlib.sha1(src.read_bytes()).hexdigest()
+                jobs.append(_TextureJob(src, common_texture / name, f"common/{src.name}", digest))
 
         # Variantentexturen sammeln, identische Dateien über Varianten deduplizieren
         grouped: dict[tuple[str, str], list[tuple[Variant, Path]]] = {}
@@ -74,21 +100,17 @@ class Converter:
                 name = self._mapped(src.name, rename_map, warnings)
                 digest = hashlib.sha1(src.read_bytes()).hexdigest()
                 grouped.setdefault((name, digest), []).append((variant, src))
-        for (name, _digest), sources in grouped.items():
+        for (name, digest), sources in grouped.items():
             variants_involved = {id(v) for v, _ in sources}
             if len(variants_involved) > 1:
-                jobs.append(_TextureJob(sources[0][1], common_texture / name, f"common/{name}"))
+                jobs.append(_TextureJob(sources[0][1], common_texture / name,
+                                        f"common/{name}", digest, group=sources))
             else:
                 variant, src = sources[0]
-                dest = (flybywire_root / package_gen.livery_folder_name(variant)
-                        / "texture" / name)
-                jobs.append(_TextureJob(src, dest, f"{variant.texture_suffix}/{src.name}"))
+                dest = (flybywire_root / folder_names[id(variant)] / "texture" / name)
+                jobs.append(_TextureJob(src, dest, f"{variant.texture_suffix}/{src.name}", digest))
 
-        # Ziel-Kollisionen (z. B. Dedup-Name schon aus Common Textures belegt): erster gewinnt
-        unique: dict[Path, _TextureJob] = {}
-        for job in jobs:
-            unique.setdefault(job.dest, job)
-        jobs = list(unique.values())
+        jobs = self._resolve_collisions(jobs, warnings, flybywire_root, folder_names)
 
         if self.dry_run:
             warnings.append(f"[dry-run] would convert {len(jobs)} textures into {out_root}")
@@ -115,7 +137,7 @@ class Converter:
                 self.progress(done, total, f"Texture {job.label}")
 
         for variant in old.variants:
-            livery_dir = flybywire_root / package_gen.livery_folder_name(variant)
+            livery_dir = flybywire_root / folder_names[id(variant)]
             livery_gen.write_texture_cfg(livery_dir / "texture")
             livery_dir.mkdir(parents=True, exist_ok=True)
             (livery_dir / "livery.cfg").write_text(livery_gen.livery_cfg_text(variant),
@@ -142,3 +164,41 @@ class Converter:
         if not was_mapped:
             warnings.append(f"Unknown texture name kept as-is: {filename}")
         return name
+
+    @staticmethod
+    def _resolve_collisions(jobs: list[_TextureJob], warnings: list[str],
+                            flybywire_root: Path,
+                            folder_names: dict[int, str]) -> list[_TextureJob]:
+        """Resolve destination collisions between jobs.
+
+        Same dest + same digest -> true duplicate, drop the later one silently.
+        Same dest + different digest -> keep the first job's content at dest and
+        relocate the colliding job instead of dropping it: per-variant if it
+        carries a source group (the multi-variant dedup case), otherwise next to
+        its original dest under a content-disambiguated name.
+        """
+        resolved: dict[Path, _TextureJob] = {}
+        queue: list[_TextureJob] = list(jobs)
+        while queue:
+            job = queue.pop(0)
+            existing = resolved.get(job.dest)
+            if existing is None:
+                resolved[job.dest] = job
+                continue
+            if existing.digest == job.digest:
+                continue  # identical content already present at dest - true duplicate
+
+            warnings.append(
+                f"Texture name collision at {job.dest.name}: keeping content from "
+                f"'{existing.label}', relocating '{job.label}' to per-variant folders")
+
+            name = job.dest.name
+            for variant, src in (job.group or [(None, job.src)]):
+                if variant is not None:
+                    dest = flybywire_root / folder_names[id(variant)] / "texture" / name
+                    label = f"{variant.texture_suffix}/{src.name}"
+                else:
+                    dest = job.dest.parent / f"{job.digest[:8]}_{name}"
+                    label = job.label
+                queue.append(_TextureJob(src, dest, label, job.digest))
+        return list(resolved.values())

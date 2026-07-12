@@ -70,6 +70,81 @@ def test_dry_run_writes_nothing(tmp_path):
     assert any("dry-run" in w for w in result.warnings)
 
 
+def test_destination_collision_relocates_differing_content(tmp_path):
+    """Finding 1: a Common Textures file whose mapped name collides with a
+    multi-variant dedup group of different content must not silently drop
+    either file - the loser is relocated to per-variant folders."""
+    pkg = make_old_package(tmp_path, dds_bytes=make_bc3_dds(8, 8))
+    common = pkg / "SimObjects" / "AirPlanes" / "Common Textures"
+    # Same original filename as the variants' shared texture, but different
+    # content -> maps to the same new name (A380X_FUSE1_ALBD.PNG.KTX2) as the
+    # common-dedup job built from both variants' identical FUSE1 texture.
+    (common / "A380X_FUSE1_ALBEDO.PNG.DDS").write_bytes(make_bc3_dds(16, 16))
+
+    out = tmp_path / "out"
+    result = Converter(pkg, out).run()
+    root = result.output_root
+
+    common_texture = root / LIVERIES / "common" / "texture"
+    assert (common_texture / "A380X_FUSE1_ALBD.PNG.KTX2").is_file()
+
+    for suffix in ("A7APC", "A7APD"):
+        relocated = (root / LIVERIES / "flybywire" / f"FlyByWire_A380_842_{suffix}"
+                    / "texture" / "A380X_FUSE1_ALBD.PNG.KTX2")
+        assert relocated.is_file(), f"expected relocated texture for {suffix}"
+
+    assert any("A380X_FUSE1_ALBD" in w and "collision" in w.lower()
+               for w in result.warnings), result.warnings
+
+
+def test_livery_folder_collision_gets_disambiguated(tmp_path):
+    """Finding 2: two FLTSIM sections sharing the same texture suffix (hence
+    the same livery_folder_name) must not overwrite each other's livery.cfg."""
+    pkg = make_old_package(tmp_path, suffixes=("X",), dds_bytes=make_bc3_dds(8, 8))
+    variant_dir = pkg / "SimObjects" / "AirPlanes" / "A388_TST_X"
+    cfg_text = """[VERSION]
+major = 1
+minor = 0
+
+[VARIATION]
+base_container = "..\\FlyByWire_A380_842"
+
+[FLTSIM.0]
+title = "TEST X A380 First"
+ui_variation = "TEST X A380 First"
+texture = "X"
+model = "TST"
+atc_id = "FIRST01"
+atc_airline = "Test Airways"
+icao_airline = "TST"
+
+[FLTSIM.1]
+title = "TEST X A380 Second"
+ui_variation = "TEST X A380 Second"
+texture = "X"
+model = "TST"
+atc_id = "SECOND02"
+atc_airline = "Test Airways Two"
+icao_airline = "TS2"
+"""
+    (variant_dir / "aircraft.cfg").write_text(cfg_text)
+
+    out = tmp_path / "out"
+    result = Converter(pkg, out).run()
+    root = result.output_root
+
+    flybywire = root / LIVERIES / "flybywire"
+    folders = {p.name: p for p in flybywire.iterdir() if p.is_dir()}
+    assert folders.keys() == {"FlyByWire_A380_842_X", "FlyByWire_A380_842_X_1"}
+
+    cfg_texts = []
+    for folder in folders.values():
+        livery_cfg = folder / "livery.cfg"
+        assert livery_cfg.is_file()
+        cfg_texts.append(livery_cfg.read_text())
+    assert cfg_texts[0] != cfg_texts[1]
+
+
 def test_unexpected_texture_error_is_caught_and_warned(tmp_path, monkeypatch):
     """Regression test: converter should catch Exception (not just specific types) in texture jobs."""
     pkg = make_old_package(tmp_path, suffixes=("X",), dds_bytes=make_bc3_dds(8, 8),
