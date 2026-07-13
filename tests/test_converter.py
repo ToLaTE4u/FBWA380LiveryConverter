@@ -251,5 +251,9 @@ def test_execute_plan_batch_writes_two_packages_and_report(tmp_path):
     assert len(result.results) == 2
     assert result.converted >= 2
     assert (out / "batch_report.txt").is_file()
+    # Fix 3: both helper packages share manifest title/creator, so their
+    # output names collide - each must still get its own package folder.
+    assert len({r.output_root for r in result.results}) == 2
     for r in result.results:
+        assert r.output_root.is_dir()
         assert (r.output_root / "manifest.json").is_file()

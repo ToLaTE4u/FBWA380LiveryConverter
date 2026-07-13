@@ -83,11 +83,13 @@ def _assign_folder_names(variants: list[Variant]) -> dict[int, str]:
 class Converter:
     def __init__(self, input_dir: Path, output_dir: Path,
                  progress: ProgressCallback | None = None,
-                 max_workers: int | None = None):
+                 max_workers: int | None = None,
+                 output_name: str | None = None):
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.progress: ProgressCallback = progress or (lambda done, total, msg: None)
         self.max_workers = max_workers or min(8, os.cpu_count() or 4)
+        self.output_name = output_name
 
     def _prepare(self) -> _Prepared:
         old = scan_package(self.input_dir)
@@ -96,7 +98,8 @@ class Converter:
         for label in old.skipped_foreign:
             warnings.append(f"Skipped foreign variant: {label}")
 
-        out_root = self.output_dir / package_gen.package_folder_name(old)
+        out_root = self.output_dir / (self.output_name
+                                      or package_gen.package_folder_name(old))
         flybywire_root = out_root / package_gen.LIVERIES_SUBPATH / "flybywire"
         common_texture = out_root / package_gen.LIVERIES_SUBPATH / "common" / "texture"
         folder_names = _assign_folder_names(old.variants)
@@ -138,7 +141,7 @@ class Converter:
         livery_names = [p.folder_names[id(v)] for v in p.old.variants]
         return PackagePlan(
             source=self.input_dir,
-            output_name=package_gen.package_folder_name(p.old),
+            output_name=self.output_name or package_gen.package_folder_name(p.old),
             livery_names=livery_names,
             texture_count=len(p.jobs),
             warnings=list(p.warnings),
@@ -291,7 +294,24 @@ def plan_conversion(input_dir: Path, output_dir: Path) -> ConversionPlan:
             skipped.append((root, str(exc)))
         except Exception as exc:
             skipped.append((root, f"planning failed: {exc}"))
+    _dedupe_output_names(packages)
     return ConversionPlan(packages, skipped, output_dir)
+
+
+def _dedupe_output_names(packages: list[PackagePlan]) -> None:
+    """Disambiguate colliding output package names across a batch.
+
+    Two packages whose manifest title+creator sanitise to the same
+    package_folder_name would otherwise write into the same output folder,
+    the second overwriting the first. Mirrors _assign_folder_names: the
+    first package keeps the base name, later collisions get "_1", "_2", ...
+    """
+    seen: dict[str, int] = {}
+    for pkg in packages:
+        base = pkg.output_name
+        count = seen.get(base, 0)
+        pkg.output_name = base if count == 0 else f"{base}_{count}"
+        seen[base] = count + 1
 
 
 def execute_plan(plan: ConversionPlan,
@@ -305,7 +325,8 @@ def execute_plan(plan: ConversionPlan,
         def shim(done, _total, msg, _base=base, _name=pkg.output_name):
             report(_base + done, total, f"[{_name}] {msg}")
         try:
-            results.append(Converter(pkg.source, plan.output_dir, progress=shim).run())
+            results.append(Converter(pkg.source, plan.output_dir, progress=shim,
+                                     output_name=pkg.output_name).run())
         except Exception as exc:
             skipped.append((pkg.source, f"conversion failed: {exc}"))
         base += pkg.texture_count + len(pkg.livery_names) + 2
