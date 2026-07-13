@@ -1,9 +1,20 @@
 import json
+import shutil
 
-from a380x_livery_converter.converter import Converter
+from a380x_livery_converter.converter import Converter, PackagePlan
 from tests.helpers import make_bc3_dds, make_old_package
 
 LIVERIES = "SimObjects/AirPlanes/FlyByWire_A380X/liveries"
+
+
+def test_plan_lists_liveries_and_writes_nothing(tmp_path):
+    pkg = make_old_package(tmp_path, dds_bytes=make_bc3_dds(8, 8))
+    out = tmp_path / "out"
+    plan = Converter(pkg, out).plan()
+    assert isinstance(plan, PackagePlan)
+    assert len(plan.livery_names) == 2
+    assert plan.texture_count >= 1
+    assert not out.exists()
 
 
 def _convert(tmp_path, **kwargs):
@@ -63,13 +74,6 @@ def test_corrupt_dds_is_skipped_with_warning(tmp_path):
     result = Converter(pkg, tmp_path / "out").run()
     assert result.skipped == 1
     assert any("BROKEN" in w for w in result.warnings)
-
-
-def test_dry_run_writes_nothing(tmp_path):
-    result, out, _ = _convert(tmp_path, dry_run=True)
-    assert not out.exists()
-    assert result.converted == 0
-    assert any("dry-run" in w for w in result.warnings)
 
 
 def test_destination_collision_relocates_differing_content(tmp_path):
@@ -162,3 +166,101 @@ def test_unexpected_texture_error_is_caught_and_warned(tmp_path, monkeypatch):
     result = Converter(pkg, tmp_path / "out").run()
     assert result.skipped >= 1
     assert any("boom" in w for w in result.warnings)
+
+
+from a380x_livery_converter.converter import plan_conversion, execute_plan
+
+BATCH_LIVERIES = "SimObjects/AirPlanes/FlyByWire_A380X/liveries"
+
+
+def test_plan_conversion_batch_folder(tmp_path):
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgA")
+    make_old_package(parent, suffixes=("A7APD",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgB")
+    plan = plan_conversion(parent, tmp_path / "out")
+    assert plan.package_count == 2
+    assert plan.livery_count == 2
+    assert not (tmp_path / "out").exists()
+
+
+def test_plan_conversion_marks_foreign_package_skipped(tmp_path):
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="good")
+    bad = make_old_package(parent, suffixes=("X",), dds_bytes=make_bc3_dds(8, 8),
+                           with_common=False, with_model=False, name="bad")
+    cfg = bad / "SimObjects" / "AirPlanes" / "A388_TST_X" / "aircraft.cfg"
+    cfg.write_text(cfg.read_text().replace("FlyByWire_A380_842", "FlyByWire_A32NX"))
+    plan = plan_conversion(parent, tmp_path / "out")
+    assert plan.package_count == 1
+    assert any("bad" in str(p) for p, _ in plan.skipped)
+
+
+def test_single_package_writes_no_batch_report(tmp_path):
+    pkg = make_old_package(tmp_path, suffixes=("X",), dds_bytes=make_bc3_dds(8, 8),
+                           with_common=False, with_model=False)
+    out = tmp_path / "out"
+    result = execute_plan(plan_conversion(pkg, out))
+    assert len(result.results) == 1
+    assert not (out / "batch_report.txt").exists()
+
+
+def test_plan_conversion_skips_package_that_fails_to_plan(tmp_path):
+    """Fix 1: an unexpected error while planning one package (here: an
+    unreadable aircraft.cfg) must not abort planning the whole batch."""
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="good")
+    bad = parent / "bad"
+    variant = bad / "SimObjects" / "AirPlanes" / "A388_BAD"
+    variant.mkdir(parents=True)
+    # a directory named aircraft.cfg makes read_text() raise (not a
+    # NotAnA380XPackageError), which previously aborted the whole plan
+    (variant / "aircraft.cfg").mkdir()
+    plan = plan_conversion(parent, tmp_path / "out")
+    assert plan.package_count == 1
+    assert any("bad" in str(p) for p, _ in plan.skipped)
+
+
+def test_execute_plan_continues_after_package_failure(tmp_path):
+    """Fix 1: a package that fails during execution must not abort the batch
+    or discard the results of the packages already converted."""
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgA")
+    pkg_b = make_old_package(parent, suffixes=("A7APD",), dds_bytes=make_bc3_dds(8, 8),
+                             with_common=False, with_model=False, name="pkgB")
+    out = tmp_path / "out"
+    plan = plan_conversion(parent, out)
+    shutil.rmtree(pkg_b / "SimObjects")  # pkgB breaks between plan and execute
+    result = execute_plan(plan)
+    assert len(result.results) == 1
+    assert any("pkgB" in str(p) for p, _ in result.skipped)
+    assert (out / "batch_report.txt").is_file()
+
+
+def test_execute_plan_batch_writes_two_packages_and_report(tmp_path):
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgA")
+    make_old_package(parent, suffixes=("A7APD",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgB")
+    out = tmp_path / "out"
+    plan = plan_conversion(parent, out)
+    result = execute_plan(plan)
+    assert len(result.results) == 2
+    assert result.converted >= 2
+    assert (out / "batch_report.txt").is_file()
+    # Fix 3: both helper packages share manifest title/creator, so their
+    # output names collide - each must still get its own package folder.
+    assert len({r.output_root for r in result.results}) == 2
+    for r in result.results:
+        assert r.output_root.is_dir()
+        assert (r.output_root / "manifest.json").is_file()

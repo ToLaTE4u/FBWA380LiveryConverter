@@ -25,6 +25,7 @@ def test_livery_cfg_content():
     assert '[GENERAL]' in text and '[version]' in text
     assert 'Name = "HUES QATAR A7-APC"' in text
     assert 'atc_airline="Qatar Airways"' in text
+    assert 'atc_id=""' in text
     assert 'icao_airline="QTR"' in text
     assert 'atc_parking_codes="QTR"' in text
     assert "ui_createdby" not in text

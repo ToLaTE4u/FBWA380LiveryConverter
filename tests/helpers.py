@@ -39,8 +39,8 @@ fallback.3=..\\..\\..\\..\\texture
 
 
 def make_old_package(root, suffixes=("A7APC", "A7APD"), dds_bytes=b"",
-                     with_common=True, with_model=True):
-    pkg = Path(root) / "Old Test Livery"
+                     with_common=True, with_model=True, name="Old Test Livery"):
+    pkg = Path(root) / name
     airplanes = pkg / "SimObjects" / "AirPlanes"
     for suffix in suffixes:
         variant = airplanes / f"A388_TST_{suffix}"

@@ -1,7 +1,7 @@
 """Inventory of an old-format (MSFS 2020) livery package."""
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from a380x_livery_converter.core.aircraft_cfg import fltsim_sections, parse_cfg
@@ -33,6 +33,7 @@ class OldPackage:
     package_version: str
     variants: list[Variant]
     common_texture_dir: Path | None
+    skipped_foreign: list[str] = field(default_factory=list)
 
 
 def _find_child(parent: Path, name: str) -> Path | None:
@@ -53,7 +54,7 @@ def scan_package(root: Path) -> OldPackage:
 
     variants: list[Variant] = []
     common_dir: Path | None = None
-    is_a380 = False
+    skipped_foreign: list[str] = []
     for folder in sorted(airplanes.iterdir()):
         if not folder.is_dir():
             continue
@@ -64,8 +65,10 @@ def scan_package(root: Path) -> OldPackage:
             continue
         sections = parse_cfg(cfg_path.read_text(encoding="utf-8", errors="replace"))
         base = sections.get("VARIATION", {}).get("base_container", "")
-        if "FLYBYWIRE_A380" in base.replace("\\", "/").rsplit("/", 1)[-1].upper():
-            is_a380 = True
+        base_name = base.replace("\\", "/").rsplit("/", 1)[-1]
+        if "FLYBYWIRE_A380" not in base_name.upper():
+            skipped_foreign.append(base_name or folder.name)
+            continue
         for index, body in fltsim_sections(sections):
             suffix = body.get("texture", "")
             texture_dir = _find_child(folder, f"TEXTURE.{suffix}" if suffix else "TEXTURE")
@@ -83,9 +86,10 @@ def scan_package(root: Path) -> OldPackage:
                 texture_dir=texture_dir,
                 has_custom_model=model_dir is not None,
             ))
-    if not is_a380 or not variants:
+    if not variants:
+        detected = ", ".join(sorted(set(skipped_foreign))) or "unknown"
         raise NotAnA380XPackageError(
-            f"{root} does not contain FBW A380X variants (base_container check failed)")
+            f"No FBW A380X livery found in {root} (detected: {detected})")
 
     title, creator, version = root.name, "unknown", "1.0"
     manifest_path = _find_child(root, "manifest.json")
@@ -98,4 +102,29 @@ def scan_package(root: Path) -> OldPackage:
         except (json.JSONDecodeError, OSError):
             pass
     return OldPackage(root=root, title=title, creator=creator, package_version=version,
-                      variants=variants, common_texture_dir=common_dir)
+                      variants=variants, common_texture_dir=common_dir,
+                      skipped_foreign=skipped_foreign)
+
+
+def _is_package(path: Path) -> bool:
+    simobjects = _find_child(path, "SimObjects")
+    return simobjects is not None and _find_child(simobjects, "AirPlanes") is not None
+
+
+def find_packages(root: Path) -> tuple[list[Path], list[tuple[Path, str]]]:
+    root = Path(root)
+    if _is_package(root):
+        return [root], []
+    packages: list[Path] = []
+    skipped: list[tuple[Path, str]] = []
+    if root.is_dir():
+        for child in sorted(root.iterdir()):
+            if not child.is_dir():
+                continue
+            if _is_package(child):
+                packages.append(child)
+            else:
+                skipped.append((child, "not a livery package"))
+    if not packages:
+        return [], [(root, "no livery package found")]
+    return packages, skipped

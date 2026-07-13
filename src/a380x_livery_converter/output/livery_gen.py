@@ -35,7 +35,7 @@ def livery_cfg_text(variant: Variant) -> str:
         "\n"
         "[GENERAL]\n"
         f'Name = "{name}"\n'
-        f'atc_id="{variant.atc_id}"\n'
+        'atc_id=""\n'
         f'atc_parking_codes="{variant.icao_airline}"\n'
         f'icao_airline="{variant.icao_airline}"\n'
         f'atc_airline="{variant.atc_airline}"\n'
