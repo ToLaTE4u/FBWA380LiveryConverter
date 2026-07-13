@@ -19,12 +19,16 @@ no SDK, no developer mode, no manual steps.
 ## How to use it (graphical)
 
 1. Double-click `A380XLiveryConverter.exe`.
-2. **Old livery package:** select the extracted folder of the old livery — the one
-   that contains `manifest.json` and a `SimObjects` folder.
-3. **Output folder:** select your MSFS 2024 **Community** folder (or any folder you
-   like, then copy the result over later).
-4. Click **Konvertieren** and watch the progress bar. When it finishes, read the log
-   and the `conversion_report.txt` inside the new package for any warnings.
+2. **Old livery package or folder:** select the extracted folder of the old livery —
+   the one that contains `manifest.json` and a `SimObjects` folder — or a folder
+   containing several such packages to convert them all at once.
+3. **Output folder (Community):** select your MSFS 2024 **Community** folder (or any
+   folder you like, then copy the result over later).
+4. Click **Analyze**. The log shows what was found: packages, liveries, textures and
+   anything that will be skipped, with warnings.
+5. Review the plan, then click **Convert** to run the conversion — or **Cancel** to
+   abort. When it finishes, read the log and the `conversion_report.txt` inside each
+   new package for any warnings.
 
 The old livery must be **extracted** first — point the tool at the folder, not a
 `.zip` archive.
