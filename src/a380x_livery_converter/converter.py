@@ -33,6 +33,7 @@ class PackagePlan:
     livery_names: list[str]
     texture_count: int
     warnings: list[str]
+    exists: bool = False
 
 
 @dataclass
@@ -295,6 +296,8 @@ def plan_conversion(input_dir: Path, output_dir: Path) -> ConversionPlan:
         except Exception as exc:
             skipped.append((root, f"planning failed: {exc}"))
     _dedupe_output_names(packages)
+    for pkg in packages:
+        pkg.exists = (output_dir / pkg.output_name).exists()
     return ConversionPlan(packages, skipped, output_dir)
 
 

@@ -173,6 +173,17 @@ from a380x_livery_converter.converter import plan_conversion, execute_plan
 BATCH_LIVERIES = "SimObjects/AirPlanes/FlyByWire_A380X/liveries"
 
 
+def test_plan_marks_existing_output_package(tmp_path):
+    pkg = make_old_package(tmp_path, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                           with_common=False, with_model=False, name="src")
+    out = tmp_path / "out"
+    plan1 = plan_conversion(pkg, out)
+    assert plan1.packages[0].exists is False
+    (out / plan1.packages[0].output_name).mkdir(parents=True)
+    plan2 = plan_conversion(pkg, out)
+    assert plan2.packages[0].exists is True
+
+
 def test_plan_conversion_batch_folder(tmp_path):
     parent = tmp_path / "in"
     parent.mkdir()
