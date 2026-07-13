@@ -53,6 +53,20 @@ def test_invalid_input_exits_2(tmp_path):
     assert result.exit_code == 2
 
 
+def test_unexpected_execution_error_exits_2(tmp_path, monkeypatch):
+    """Fix 2: an unexpected error during execution must exit 2 with a short
+    message instead of surfacing a raw traceback with exit code 1."""
+    pkg = _single(tmp_path)
+
+    def boom(plan, progress=None):
+        raise PermissionError("boom")
+
+    monkeypatch.setattr("a380x_livery_converter.cli.execute_plan", boom)
+    result = runner.invoke(app, [str(pkg), "-o", str(tmp_path / "out"), "--yes"])
+    assert result.exit_code == 2, result.output
+    assert "boom" in result.output
+
+
 def test_batch_folder_converts_all(tmp_path):
     parent = tmp_path / "in"
     parent.mkdir()

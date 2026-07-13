@@ -55,7 +55,11 @@ def convert(
         if verbose:
             typer.echo(f"[{done}/{total}] {message}")
 
-    result = execute_plan(plan, progress=progress)
+    try:
+        result = execute_plan(plan, progress=progress)
+    except Exception as exc:
+        typer.secho(f"Unexpected error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2)
     for res in result.results:
         typer.echo(f"Output: {res.output_root}")
     typer.echo(f"Converted textures: {result.converted}, skipped: {result.skipped_textures}")
