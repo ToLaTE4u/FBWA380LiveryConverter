@@ -123,7 +123,7 @@ class ConverterApp:
         self._append_log(f"Found {plan.package_count} package(s), {plan.livery_count} "
                          f"liveries, {plan.texture_count} textures:")
         for pkg in plan.packages:
-            marker = " (already exists — will be overwritten)" if pkg.exists else ""
+            marker = " (already exists - will be overwritten)" if pkg.exists else ""
             self._append_log(f"  - {pkg.output_name}: {len(pkg.livery_names)} liveries, "
                              f"{pkg.texture_count} textures{marker}")
             for warning in pkg.warnings:

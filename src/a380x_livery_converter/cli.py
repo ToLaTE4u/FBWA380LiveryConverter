@@ -16,7 +16,7 @@ def _print_plan(plan: ConversionPlan) -> None:
     typer.echo(f"Found {plan.package_count} package(s), {plan.livery_count} liveries, "
                f"{plan.texture_count} textures:")
     for pkg in plan.packages:
-        marker = " (already exists — will be overwritten)" if pkg.exists else ""
+        marker = " (already exists - will be overwritten)" if pkg.exists else ""
         typer.echo(f"  - {pkg.output_name}: {len(pkg.livery_names)} liveries, "
                    f"{pkg.texture_count} textures{marker}")
         for warning in pkg.warnings:
