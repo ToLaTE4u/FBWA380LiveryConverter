@@ -46,6 +46,23 @@ def test_scan_rejects_folder_without_simobjects(tmp_path):
         scan_package(tmp_path)
 
 
+def test_foreign_variant_skipped_not_rejected(tmp_path):
+    pkg = make_old_package(tmp_path, suffixes=("A7APC", "FOREIGN"))
+    cfg = pkg / "SimObjects" / "AirPlanes" / "A388_TST_FOREIGN" / "aircraft.cfg"
+    cfg.write_text(cfg.read_text().replace("FlyByWire_A380_842", "FlyByWire_A32NX"))
+    result = scan_package(pkg)
+    assert {v.texture_suffix for v in result.variants} == {"A7APC"}
+    assert any("A32NX" in label for label in result.skipped_foreign)
+
+
+def test_rejection_message_names_detected_aircraft(tmp_path):
+    pkg = make_old_package(tmp_path, suffixes=("X",))
+    cfg = pkg / "SimObjects" / "AirPlanes" / "A388_TST_X" / "aircraft.cfg"
+    cfg.write_text(cfg.read_text().replace("FlyByWire_A380_842", "FlyByWire_A32NX"))
+    with pytest.raises(NotAnA380XPackageError, match="A32NX"):
+        scan_package(pkg)
+
+
 @pytest.mark.skipif(not QATAR.exists(), reason="real sample data not present")
 def test_scan_real_qatar_pack():
     result = scan_package(QATAR)
