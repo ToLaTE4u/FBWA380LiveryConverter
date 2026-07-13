@@ -31,13 +31,18 @@ The old livery must be **extracted** first — point the tool at the folder, not
 ## How to use it (command line)
 
 ```
-A380XLiveryConverter.exe convert "C:\path\to\Old Livery" -o "C:\path\to\Community" [--dry-run] [--verbose]
+A380XLiveryConverter.exe "C:\path\to\input" -o "C:\path\to\Community" [--yes] [--dry-run] [--verbose]
 ```
 
-- `--dry-run` — scan and plan only, write nothing (useful to preview warnings).
-- `--verbose` — print per-file progress.
+The tool first shows a plan of what it found (packages, liveries, anything
+skipped) and asks for confirmation. Pass `--yes` to skip the prompt (for
+scripts), or `--dry-run` to show the plan and exit without converting.
 
-Exit codes: `0` = success, `1` = finished with warnings, `2` = error.
+`input` may be a single extracted livery package **or** a folder containing
+several packages — the tool detects which and converts them all, writing one
+installable package each plus a `batch_report.txt` summary.
+
+Exit codes: 0 = success (or cancelled), 1 = finished with warnings, 2 = error.
 
 ## What it does
 
@@ -60,6 +65,11 @@ Exit codes: `0` = success, `1` = finished with warnings, `2` = error.
 - The input must be an extracted folder — no `.zip` support.
 - On a machine without a suitable GPU, texture compression falls back to a CPU
   encoder, which is much slower (minutes instead of seconds per 4K texture).
+- Non-A380 input (e.g. an A320 livery) is rejected with a message naming the
+  detected aircraft. Foreign variants inside an otherwise-valid package are
+  skipped and reported.
+- The generated `livery.cfg` leaves `atc_id` empty (native style); the visible
+  tail number comes from each livery's own registration texture.
 
 Every conversion writes a `conversion_report.txt` into the output package listing
 all warnings, texture mappings and anything that was skipped.

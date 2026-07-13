@@ -83,11 +83,10 @@ def _assign_folder_names(variants: list[Variant]) -> dict[int, str]:
 class Converter:
     def __init__(self, input_dir: Path, output_dir: Path,
                  progress: ProgressCallback | None = None,
-                 dry_run: bool = False, max_workers: int | None = None):
+                 max_workers: int | None = None):
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.progress: ProgressCallback = progress or (lambda done, total, msg: None)
-        self.dry_run = dry_run
         self.max_workers = max_workers or min(8, os.cpu_count() or 4)
 
     def _prepare(self) -> _Prepared:
@@ -149,10 +148,6 @@ class Converter:
         p = self._prepare()
         old, jobs, warnings = p.old, p.jobs, p.warnings
         out_root, flybywire_root, folder_names = p.out_root, p.flybywire_root, p.folder_names
-
-        if self.dry_run:
-            warnings.append(f"[dry-run] would convert {len(jobs)} textures into {out_root}")
-            return ConversionResult(out_root, 0, 0, warnings)
 
         total = len(jobs) + len(old.variants) + 2
         done = 0

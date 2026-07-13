@@ -75,13 +75,6 @@ def test_corrupt_dds_is_skipped_with_warning(tmp_path):
     assert any("BROKEN" in w for w in result.warnings)
 
 
-def test_dry_run_writes_nothing(tmp_path):
-    result, out, _ = _convert(tmp_path, dry_run=True)
-    assert not out.exists()
-    assert result.converted == 0
-    assert any("dry-run" in w for w in result.warnings)
-
-
 def test_destination_collision_relocates_differing_content(tmp_path):
     """Finding 1: a Common Textures file whose mapped name collides with a
     multi-variant dedup group of different content must not silently drop
