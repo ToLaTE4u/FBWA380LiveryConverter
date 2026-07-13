@@ -168,9 +168,7 @@ def test_unexpected_texture_error_is_caught_and_warned(tmp_path, monkeypatch):
     assert any("boom" in w for w in result.warnings)
 
 
-from a380x_livery_converter.converter import (
-    ConversionPlan, plan_conversion, execute_plan,
-)
+from a380x_livery_converter.converter import plan_conversion, execute_plan
 
 BATCH_LIVERIES = "SimObjects/AirPlanes/FlyByWire_A380X/liveries"
 
@@ -200,6 +198,15 @@ def test_plan_conversion_marks_foreign_package_skipped(tmp_path):
     plan = plan_conversion(parent, tmp_path / "out")
     assert plan.package_count == 1
     assert any("bad" in str(p) for p, _ in plan.skipped)
+
+
+def test_single_package_writes_no_batch_report(tmp_path):
+    pkg = make_old_package(tmp_path, suffixes=("X",), dds_bytes=make_bc3_dds(8, 8),
+                           with_common=False, with_model=False)
+    out = tmp_path / "out"
+    result = execute_plan(plan_conversion(pkg, out))
+    assert len(result.results) == 1
+    assert not (out / "batch_report.txt").exists()
 
 
 def test_plan_conversion_skips_package_that_fails_to_plan(tmp_path):
