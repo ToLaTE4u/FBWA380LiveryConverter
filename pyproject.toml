@@ -3,6 +3,8 @@ name = "a380x-livery-converter"
 version = "0.1.0"
 description = "Convert FBW A380X MSFS 2020 liveries to native MSFS 2024 packages"
 requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "Manuel Ziesel (ToLaTE4u)" }]
 dependencies = [
     "pillow>=10.0",
     "texture2ddecoder>=1.0.4",

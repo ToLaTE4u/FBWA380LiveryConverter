@@ -1,0 +1,69 @@
+FBW A380X Livery Converter — End User License
+Copyright (c) 2026 Manuel Ziesel (ToLaTE4u). All rights reserved.
+
+This is a proprietary license. Please read it carefully. By downloading,
+installing, or using the Software, you agree to be bound by its terms.
+
+1. DEFINITIONS
+   "Software" means the FBW A380X Livery Converter, including its source code,
+   compiled executables, scripts, images, and accompanying files distributed by
+   the copyright holder, EXCEPT for the third-party components identified in
+   THIRD-PARTY-NOTICES.md, which are licensed to you under their own separate
+   terms.
+
+2. GRANT OF LICENSE
+   The copyright holder grants you a worldwide, royalty-free, non-exclusive
+   license to:
+   (a) download, install, and run the Software;
+   (b) use the Software to convert livery packages; and
+   (c) redistribute the Software free of charge, provided that it is
+       redistributed complete and unmodified, including this LICENSE file and
+       all copyright, license, and attribution notices.
+
+3. RESTRICTIONS
+   You may NOT:
+   (a) modify, adapt, translate, or create derivative works based on the
+       Software;
+   (b) reverse engineer, decompile, or disassemble the compiled executables,
+       except to the extent that applicable law expressly permits despite this
+       limitation;
+   (c) distribute modified copies of the Software, whether in source or binary
+       form;
+   (d) remove, alter, or obscure any copyright, license, or attribution notice;
+   (e) sell, rent, lease, sublicense, or charge any fee for the Software itself.
+
+4. OWNERSHIP
+   The Software is licensed, not sold. All rights not expressly granted in this
+   license are reserved by the copyright holder.
+
+5. THIRD-PARTY COMPONENTS
+   The Software bundles third-party components that remain under their own
+   licenses, as listed in THIRD-PARTY-NOTICES.md. Nothing in this license
+   restricts, or is intended to restrict, your rights under those licenses with
+   respect to those components.
+
+6. OUTPUT
+   Livery packages produced by the Software ("Output") are not covered by this
+   license, and the copyright holder claims no ownership of your Output. Note
+   that Output may itself contain assets owned by third parties (the original
+   livery authors, FlyByWire Simulations, Airbus, Microsoft, and others). You
+   are solely responsible for complying with those parties' terms when you use
+   or distribute your Output.
+
+7. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+8. LIMITATION OF LIABILITY
+   IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE,
+   ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+9. TERMINATION
+   This license terminates automatically if you breach any of its terms. Upon
+   termination, you must cease using and distributing the Software.
+
+This project is not affiliated with or endorsed by FlyByWire Simulations,
+Airbus, or Microsoft.
