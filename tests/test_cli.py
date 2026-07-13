@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from typer.testing import CliRunner
 
 from a380x_livery_converter.cli import app
+from a380x_livery_converter.converter import BatchResult, ConversionResult
 from tests.helpers import make_bc3_dds, make_old_package
 
 runner = CliRunner()
@@ -64,6 +67,40 @@ def test_unexpected_execution_error_exits_2(tmp_path, monkeypatch):
     monkeypatch.setattr("a380x_livery_converter.cli.execute_plan", boom)
     result = runner.invoke(app, [str(pkg), "-o", str(tmp_path / "out"), "--yes"])
     assert result.exit_code == 2, result.output
+    assert "boom" in result.output
+
+
+def test_all_packages_failing_at_runtime_exits_2(tmp_path, monkeypatch):
+    """A batch where every package fails DURING conversion (not planning) must
+    be reported as a failure: exit 2, "No packages were converted", and the
+    failure reason - not a silent "Converted textures: 0, skipped: 0" success."""
+    pkg = _single(tmp_path)
+
+    def fake_execute_plan(plan, progress=None):
+        return BatchResult(results=[], skipped=[(Path("pkgX"), "conversion failed: boom")])
+
+    monkeypatch.setattr("a380x_livery_converter.cli.execute_plan", fake_execute_plan)
+    result = runner.invoke(app, [str(pkg), "-o", str(tmp_path / "out"), "--yes"])
+    assert result.exit_code == 2, result.output
+    assert "No packages were converted" in result.output
+    assert "boom" in result.output
+
+
+def test_partial_runtime_failure_exits_1_and_reports_skipped(tmp_path, monkeypatch):
+    """When some packages convert but one fails at runtime, the CLI must exit 1
+    (not 0) and print the failed package, not just the plan-time skips."""
+    pkg = _single(tmp_path)
+    ok_result = ConversionResult(output_root=tmp_path / "out" / "pkgY_ok",
+                                 converted=1, skipped=0, warnings=[])
+
+    def fake_execute_plan(plan, progress=None):
+        return BatchResult(results=[ok_result],
+                           skipped=[(Path("pkgY"), "conversion failed: boom")])
+
+    monkeypatch.setattr("a380x_livery_converter.cli.execute_plan", fake_execute_plan)
+    result = runner.invoke(app, [str(pkg), "-o", str(tmp_path / "out"), "--yes"])
+    assert result.exit_code == 1, result.output
+    assert "pkgY" in result.output
     assert "boom" in result.output
 
 

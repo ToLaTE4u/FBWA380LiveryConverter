@@ -65,5 +65,10 @@ def convert(
     typer.echo(f"Converted textures: {result.converted}, skipped: {result.skipped_textures}")
     for warning in result.warnings:
         typer.secho(f"WARNING: {warning}", fg=typer.colors.YELLOW)
-    if result.warnings or result.skipped_textures or plan.skipped:
+    for path, reason in result.skipped:
+        typer.secho(f"SKIPPED {Path(path).name}: {reason}", fg=typer.colors.YELLOW)
+    if not result.results:
+        typer.secho("No packages were converted.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2)
+    if result.warnings or result.skipped_textures or result.skipped:
         raise typer.Exit(1)

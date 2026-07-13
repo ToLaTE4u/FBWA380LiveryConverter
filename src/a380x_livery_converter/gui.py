@@ -138,6 +138,8 @@ class ConverterApp:
             self._append_log(f"WARNING: {warning}")
         for res in result.results:
             self._append_log(f"Output: {res.output_root}")
+        for path, reason in result.skipped:
+            self._append_log(f"SKIPPED {Path(path).name}: {reason}")
 
     def _reset(self):
         self._busy = False
