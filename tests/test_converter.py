@@ -172,3 +172,54 @@ def test_unexpected_texture_error_is_caught_and_warned(tmp_path, monkeypatch):
     result = Converter(pkg, tmp_path / "out").run()
     assert result.skipped >= 1
     assert any("boom" in w for w in result.warnings)
+
+
+from a380x_livery_converter.converter import (
+    ConversionPlan, plan_conversion, execute_plan,
+)
+
+BATCH_LIVERIES = "SimObjects/AirPlanes/FlyByWire_A380X/liveries"
+
+
+def test_plan_conversion_batch_folder(tmp_path):
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgA")
+    make_old_package(parent, suffixes=("A7APD",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgB")
+    plan = plan_conversion(parent, tmp_path / "out")
+    assert plan.package_count == 2
+    assert plan.livery_count == 2
+    assert not (tmp_path / "out").exists()
+
+
+def test_plan_conversion_marks_foreign_package_skipped(tmp_path):
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="good")
+    bad = make_old_package(parent, suffixes=("X",), dds_bytes=make_bc3_dds(8, 8),
+                           with_common=False, with_model=False, name="bad")
+    cfg = bad / "SimObjects" / "AirPlanes" / "A388_TST_X" / "aircraft.cfg"
+    cfg.write_text(cfg.read_text().replace("FlyByWire_A380_842", "FlyByWire_A32NX"))
+    plan = plan_conversion(parent, tmp_path / "out")
+    assert plan.package_count == 1
+    assert any("bad" in str(p) for p, _ in plan.skipped)
+
+
+def test_execute_plan_batch_writes_two_packages_and_report(tmp_path):
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgA")
+    make_old_package(parent, suffixes=("A7APD",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgB")
+    out = tmp_path / "out"
+    plan = plan_conversion(parent, out)
+    result = execute_plan(plan)
+    assert len(result.results) == 2
+    assert result.converted >= 2
+    assert (out / "batch_report.txt").is_file()
+    for r in result.results:
+        assert (r.output_root / "manifest.json").is_file()

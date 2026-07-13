@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Callable
 
 from a380x_livery_converter.core.rename_map import load_rename_map, map_texture_filename
-from a380x_livery_converter.core.scanner import Variant, scan_package
+from a380x_livery_converter.core.scanner import (
+    NotAnA380XPackageError, Variant, find_packages, scan_package,
+)
 from a380x_livery_converter.output import livery_gen, package_gen
 from a380x_livery_converter.texture.pipeline import convert_texture
 
@@ -240,3 +242,72 @@ class Converter:
                     label = job.label
                 queue.append(_TextureJob(src, dest, label, job.digest))
         return list(resolved.values())
+
+
+@dataclass
+class ConversionPlan:
+    packages: list[PackagePlan]
+    skipped: list[tuple[Path, str]]
+    output_dir: Path
+
+    @property
+    def package_count(self) -> int:
+        return len(self.packages)
+
+    @property
+    def livery_count(self) -> int:
+        return sum(len(p.livery_names) for p in self.packages)
+
+    @property
+    def texture_count(self) -> int:
+        return sum(p.texture_count for p in self.packages)
+
+
+@dataclass
+class BatchResult:
+    results: list[ConversionResult]
+    skipped: list[tuple[Path, str]]
+
+    @property
+    def converted(self) -> int:
+        return sum(r.converted for r in self.results)
+
+    @property
+    def skipped_textures(self) -> int:
+        return sum(r.skipped for r in self.results)
+
+    @property
+    def warnings(self) -> list[str]:
+        out: list[str] = []
+        for r in self.results:
+            out.extend(r.warnings)
+        return out
+
+
+def plan_conversion(input_dir: Path, output_dir: Path) -> ConversionPlan:
+    input_dir, output_dir = Path(input_dir), Path(output_dir)
+    roots, skipped = find_packages(input_dir)
+    skipped = list(skipped)
+    packages: list[PackagePlan] = []
+    for root in roots:
+        try:
+            packages.append(Converter(root, output_dir).plan())
+        except NotAnA380XPackageError as exc:
+            skipped.append((root, str(exc)))
+    return ConversionPlan(packages, skipped, output_dir)
+
+
+def execute_plan(plan: ConversionPlan,
+                 progress: ProgressCallback | None = None) -> BatchResult:
+    report = progress or (lambda done, total, msg: None)
+    total = sum(p.texture_count + len(p.livery_names) + 2 for p in plan.packages) or 1
+    base = 0
+    results: list[ConversionResult] = []
+    for pkg in plan.packages:
+        def shim(done, _total, msg, _base=base, _name=pkg.output_name):
+            report(_base + done, total, f"[{_name}] {msg}")
+        results.append(Converter(pkg.source, plan.output_dir, progress=shim).run())
+        base += pkg.texture_count + len(pkg.livery_names) + 2
+    if len(results) > 1 or plan.skipped:
+        package_gen.write_batch_report(plan.output_dir, results, plan.skipped)
+    return BatchResult(results, plan.skipped)

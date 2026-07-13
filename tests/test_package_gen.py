@@ -86,3 +86,14 @@ def test_report_omits_mappings_section_when_absent_or_empty(tmp_path):
                         mappings=[])
     text = path.read_text()
     assert "Mappings:" not in text
+
+
+def test_batch_report_lists_packages_and_skips(tmp_path):
+    from a380x_livery_converter.converter import ConversionResult
+    from a380x_livery_converter.output.package_gen import write_batch_report
+    results = [ConversionResult(tmp_path / "pkgA", 5, 0, []),
+               ConversionResult(tmp_path / "pkgB", 3, 1, ["w"])]
+    path = write_batch_report(tmp_path, results, [(tmp_path / "junk", "not a livery package")])
+    text = path.read_text()
+    assert "pkgA" in text and "pkgB" in text
+    assert "junk" in text and "not a livery package" in text

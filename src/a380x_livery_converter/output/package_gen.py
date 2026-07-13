@@ -92,3 +92,25 @@ def write_report(root: Path, warnings: list[str], converted: int, skipped: int,
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
+
+
+def write_batch_report(output_dir, results, skipped) -> Path:
+    lines = [
+        "A380X Livery Converter - batch report",
+        "=" * 38,
+        "",
+        f"Packages converted: {len(results)}",
+    ]
+    for r in results:
+        lines.append(f"  - {Path(r.output_root).name}: "
+                     f"{r.converted} textures, {r.skipped} skipped")
+    if skipped:
+        lines.append("")
+        lines.append("Skipped:")
+        for path, reason in skipped:
+            lines.append(f"  - {Path(path).name}: {reason}")
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / "batch_report.txt"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
