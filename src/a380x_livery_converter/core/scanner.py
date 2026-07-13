@@ -104,3 +104,27 @@ def scan_package(root: Path) -> OldPackage:
     return OldPackage(root=root, title=title, creator=creator, package_version=version,
                       variants=variants, common_texture_dir=common_dir,
                       skipped_foreign=skipped_foreign)
+
+
+def _is_package(path: Path) -> bool:
+    simobjects = _find_child(path, "SimObjects")
+    return simobjects is not None and _find_child(simobjects, "AirPlanes") is not None
+
+
+def find_packages(root: Path) -> tuple[list[Path], list[tuple[Path, str]]]:
+    root = Path(root)
+    if _is_package(root):
+        return [root], []
+    packages: list[Path] = []
+    skipped: list[tuple[Path, str]] = []
+    if root.is_dir():
+        for child in sorted(root.iterdir()):
+            if not child.is_dir():
+                continue
+            if _is_package(child):
+                packages.append(child)
+            else:
+                skipped.append((child, "not a livery package"))
+    if not packages:
+        return [], [(root, "no livery package found")]
+    return packages, skipped

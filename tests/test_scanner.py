@@ -4,6 +4,7 @@ import pytest
 
 from a380x_livery_converter.core.scanner import (
     NotAnA380XPackageError,
+    find_packages,
     scan_package,
 )
 from tests.helpers import make_old_package
@@ -71,3 +72,31 @@ def test_scan_real_qatar_pack():
     assert result.common_texture_dir is not None
     suffixes = {v.texture_suffix for v in result.variants}
     assert "A7APC" in suffixes
+
+
+def test_find_packages_single(tmp_path):
+    pkg = make_old_package(tmp_path)
+    roots, skipped = find_packages(pkg)
+    assert roots == [pkg]
+    assert skipped == []
+
+
+def test_find_packages_parent_of_multiple(tmp_path):
+    parent = tmp_path / "batch"
+    parent.mkdir()
+    a = make_old_package(parent, suffixes=("A7APC",), name="pkgA")
+    b = make_old_package(parent, suffixes=("A7APD",), name="pkgB")
+    junk = parent / "notapackage"
+    junk.mkdir()
+    (junk / "readme.txt").write_text("hi")
+    roots, skipped = find_packages(parent)
+    assert set(roots) == {a, b}
+    assert any("notapackage" in str(p) for p, _ in skipped)
+
+
+def test_find_packages_none(tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    roots, skipped = find_packages(empty)
+    assert roots == []
+    assert skipped == [(empty, "no livery package found")]
