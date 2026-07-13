@@ -3,7 +3,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from a380x_livery_converter.cli import app
-from a380x_livery_converter.converter import BatchResult, ConversionResult
+from a380x_livery_converter.converter import BatchResult, ConversionResult, plan_conversion
 from tests.helpers import make_bc3_dds, make_old_package
 
 runner = CliRunner()
@@ -15,6 +15,17 @@ def _single(tmp_path):
     (pkg / "SimObjects" / "AirPlanes" / "A388_TST_X" / "TEXTURE.X"
      / "CUSTOM_DECAL.PNG.DDS").unlink()
     return pkg
+
+
+def _existing_single(tmp_path):
+    pkg = make_old_package(tmp_path, suffixes=("X",), dds_bytes=make_bc3_dds(8, 8),
+                           with_common=False, with_model=False)
+    (pkg / "SimObjects" / "AirPlanes" / "A388_TST_X" / "TEXTURE.X"
+     / "CUSTOM_DECAL.PNG.DDS").unlink()
+    out = tmp_path / "out"
+    name = plan_conversion(pkg, out).packages[0].output_name
+    (out / name).mkdir(parents=True)
+    return pkg, out, name
 
 
 def test_convert_with_yes_exits_0(tmp_path):
@@ -114,3 +125,38 @@ def test_batch_folder_converts_all(tmp_path):
     result = runner.invoke(app, [str(parent), "-o", str(tmp_path / "out"), "--yes"])
     assert result.exit_code in (0, 1), result.output
     assert "2 package(s)" in result.output
+
+
+def test_existing_package_marked_in_plan(tmp_path):
+    pkg, out, name = _existing_single(tmp_path)
+    result = runner.invoke(app, [str(pkg), "-o", str(out), "--dry-run"])
+    assert "already exists" in result.output
+
+
+def test_decline_overwrite_cancels(tmp_path):
+    pkg, out, name = _existing_single(tmp_path)
+    result = runner.invoke(app, [str(pkg), "-o", str(out)], input="n\n")
+    assert result.exit_code == 0
+    assert "Cancelled." in result.output
+    assert not (out / name / "manifest.json").exists()
+
+
+def test_overwrite_then_convert(tmp_path):
+    pkg, out, name = _existing_single(tmp_path)
+    result = runner.invoke(app, [str(pkg), "-o", str(out)], input="y\ny\n")
+    assert result.exit_code == 0, result.output
+    assert (out / name / "manifest.json").exists()
+
+
+def test_force_skips_overwrite_prompt(tmp_path):
+    pkg, out, name = _existing_single(tmp_path)
+    result = runner.invoke(app, [str(pkg), "-o", str(out), "--force"], input="y\n")
+    assert result.exit_code == 0, result.output
+    assert (out / name / "manifest.json").exists()
+
+
+def test_yes_skips_both_prompts(tmp_path):
+    pkg, out, name = _existing_single(tmp_path)
+    result = runner.invoke(app, [str(pkg), "-o", str(out), "--yes"])
+    assert result.exit_code == 0, result.output
+    assert (out / name / "manifest.json").exists()
