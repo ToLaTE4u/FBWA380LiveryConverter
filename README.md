@@ -12,7 +12,8 @@ no SDK, no developer mode, no manual steps.
 
 ## Download & install
 
-1. Download `A380XLiveryConverter.exe` from the [Releases](../../releases) page.
+1. Download `A380XLiveryConverter.exe` **only from an official source** — the
+   [GitHub Releases](../../releases) page or flightsim.to.
 2. That's it — it's a single self-contained file. No installer, no Python required.
 
 ## How to use it (graphical)
@@ -76,19 +77,24 @@ all warnings, texture mappings and anything that was skipped.
 
 ## License
 
-This tool is **free to use and share, but not to modify.** See [LICENSE](LICENSE)
-for the full terms. It bundles third-party components under their own licenses —
-see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+This tool is **free to use, but must not be redistributed or modified.** Download
+it only from the official sources — the [GitHub Releases](../../releases) page or
+flightsim.to. Please don't re-upload, mirror or bundle it elsewhere; point people to
+those sources instead. See [LICENSE](LICENSE) for the full terms. It bundles
+third-party components under their own licenses — see
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-Converted liveries you create are yours to share. Remember that a converted livery
-may still contain artwork owned by its original author — respect their terms when
-redistributing.
+The author claims **no rights** to the liveries you convert or to any livery
+artwork — those belong to their original creators. You are solely responsible for
+making sure you have the right to convert and use a livery, and for not infringing
+anyone's rights.
 
 ## Credits
 
-*Not affiliated with or endorsed by FlyByWire Simulations, Airbus, or Microsoft.*
-FlyByWire, A380X and Microsoft Flight Simulator are trademarks of their respective
-owners.
+*This project and its author are independent and are **not** affiliated with,
+endorsed by, or sponsored by FlyByWire Simulations, Airbus, Microsoft, Asobo Studio,
+or any livery creator.* All trademarks, liveries and livery artwork belong to their
+respective owners.
 
 ---
 

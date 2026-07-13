@@ -14,11 +14,11 @@ installing, or using the Software, you agree to be bound by its terms.
 2. GRANT OF LICENSE
    The copyright holder grants you a worldwide, royalty-free, non-exclusive
    license to:
-   (a) download, install, and run the Software;
-   (b) use the Software to convert livery packages; and
-   (c) redistribute the Software free of charge, provided that it is
-       redistributed complete and unmodified, including this LICENSE file and
-       all copyright, license, and attribution notices.
+   (a) obtain and download the Software ONLY from its official distribution
+       channels, namely the project's GitHub repository
+       (https://github.com/ToLaTE4u/FBWA380LiveryConverter) and flightsim.to;
+   (b) install and run the Software; and
+   (c) use the Software to convert livery packages for your own use.
 
 3. RESTRICTIONS
    You may NOT:
@@ -30,7 +30,11 @@ installing, or using the Software, you agree to be bound by its terms.
    (c) distribute modified copies of the Software, whether in source or binary
        form;
    (d) remove, alter, or obscure any copyright, license, or attribution notice;
-   (e) sell, rent, lease, sublicense, or charge any fee for the Software itself.
+   (e) sell, rent, lease, sublicense, or charge any fee for the Software itself;
+   (f) redistribute, re-upload, mirror, bundle, host, or otherwise make the
+       Software available for download or transfer to others anywhere other
+       than the official distribution channels named in Section 2(a). Others
+       must obtain the Software from those channels themselves.
 
 4. OWNERSHIP
    The Software is licensed, not sold. All rights not expressly granted in this
@@ -42,13 +46,17 @@ installing, or using the Software, you agree to be bound by its terms.
    restricts, or is intended to restrict, your rights under those licenses with
    respect to those components.
 
-6. OUTPUT
+6. OUTPUT AND THIRD-PARTY LIVERY CONTENT
    Livery packages produced by the Software ("Output") are not covered by this
-   license, and the copyright holder claims no ownership of your Output. Note
-   that Output may itself contain assets owned by third parties (the original
-   livery authors, FlyByWire Simulations, Airbus, Microsoft, and others). You
-   are solely responsible for complying with those parties' terms when you use
-   or distribute your Output.
+   license. The copyright holder claims NO ownership of, and NO rights in, the
+   Output, the original liveries, or any livery artwork, textures, models, or
+   other assets involved — all of these belong to their respective creators and
+   rights holders (the original livery authors, FlyByWire Simulations, Airbus,
+   Microsoft, Asobo Studio, and others). You alone are responsible for ensuring
+   that you hold the rights required to obtain, convert, use, and distribute any
+   livery or Output, and for not infringing any third party's rights in doing
+   so. The copyright holder accepts no responsibility for your use of any
+   livery or Output.
 
 7. NO WARRANTY
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -65,5 +73,7 @@ installing, or using the Software, you agree to be bound by its terms.
    This license terminates automatically if you breach any of its terms. Upon
    termination, you must cease using and distributing the Software.
 
-This project is not affiliated with or endorsed by FlyByWire Simulations,
-Airbus, or Microsoft.
+This project and its author are independent and are NOT affiliated with,
+endorsed by, or sponsored by FlyByWire Simulations, Airbus, Microsoft, Asobo
+Studio, or any livery creator. All trademarks, liveries, and livery artwork
+belong to their respective owners.
