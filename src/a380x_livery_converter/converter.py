@@ -289,6 +289,8 @@ def plan_conversion(input_dir: Path, output_dir: Path) -> ConversionPlan:
             packages.append(Converter(root, output_dir).plan())
         except NotAnA380XPackageError as exc:
             skipped.append((root, str(exc)))
+        except Exception as exc:
+            skipped.append((root, f"planning failed: {exc}"))
     return ConversionPlan(packages, skipped, output_dir)
 
 
@@ -298,11 +300,15 @@ def execute_plan(plan: ConversionPlan,
     total = sum(p.texture_count + len(p.livery_names) + 2 for p in plan.packages) or 1
     base = 0
     results: list[ConversionResult] = []
+    skipped = list(plan.skipped)
     for pkg in plan.packages:
         def shim(done, _total, msg, _base=base, _name=pkg.output_name):
             report(_base + done, total, f"[{_name}] {msg}")
-        results.append(Converter(pkg.source, plan.output_dir, progress=shim).run())
+        try:
+            results.append(Converter(pkg.source, plan.output_dir, progress=shim).run())
+        except Exception as exc:
+            skipped.append((pkg.source, f"conversion failed: {exc}"))
         base += pkg.texture_count + len(pkg.livery_names) + 2
-    if len(results) > 1 or plan.skipped:
-        package_gen.write_batch_report(plan.output_dir, results, plan.skipped)
-    return BatchResult(results, plan.skipped)
+    if len(results) > 1 or skipped:
+        package_gen.write_batch_report(plan.output_dir, results, skipped)
+    return BatchResult(results, skipped)

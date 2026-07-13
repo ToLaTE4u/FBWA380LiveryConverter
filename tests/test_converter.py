@@ -1,4 +1,5 @@
 import json
+import shutil
 
 from a380x_livery_converter.converter import Converter, PackagePlan
 from tests.helpers import make_bc3_dds, make_old_package
@@ -199,6 +200,42 @@ def test_plan_conversion_marks_foreign_package_skipped(tmp_path):
     plan = plan_conversion(parent, tmp_path / "out")
     assert plan.package_count == 1
     assert any("bad" in str(p) for p, _ in plan.skipped)
+
+
+def test_plan_conversion_skips_package_that_fails_to_plan(tmp_path):
+    """Fix 1: an unexpected error while planning one package (here: an
+    unreadable aircraft.cfg) must not abort planning the whole batch."""
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="good")
+    bad = parent / "bad"
+    variant = bad / "SimObjects" / "AirPlanes" / "A388_BAD"
+    variant.mkdir(parents=True)
+    # a directory named aircraft.cfg makes read_text() raise (not a
+    # NotAnA380XPackageError), which previously aborted the whole plan
+    (variant / "aircraft.cfg").mkdir()
+    plan = plan_conversion(parent, tmp_path / "out")
+    assert plan.package_count == 1
+    assert any("bad" in str(p) for p, _ in plan.skipped)
+
+
+def test_execute_plan_continues_after_package_failure(tmp_path):
+    """Fix 1: a package that fails during execution must not abort the batch
+    or discard the results of the packages already converted."""
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="pkgA")
+    pkg_b = make_old_package(parent, suffixes=("A7APD",), dds_bytes=make_bc3_dds(8, 8),
+                             with_common=False, with_model=False, name="pkgB")
+    out = tmp_path / "out"
+    plan = plan_conversion(parent, out)
+    shutil.rmtree(pkg_b / "SimObjects")  # pkgB breaks between plan and execute
+    result = execute_plan(plan)
+    assert len(result.results) == 1
+    assert any("pkgB" in str(p) for p, _ in result.skipped)
+    assert (out / "batch_report.txt").is_file()
 
 
 def test_execute_plan_batch_writes_two_packages_and_report(tmp_path):
