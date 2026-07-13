@@ -16,8 +16,9 @@ def _print_plan(plan: ConversionPlan) -> None:
     typer.echo(f"Found {plan.package_count} package(s), {plan.livery_count} liveries, "
                f"{plan.texture_count} textures:")
     for pkg in plan.packages:
+        marker = " (already exists - will be overwritten)" if pkg.exists else ""
         typer.echo(f"  - {pkg.output_name}: {len(pkg.livery_names)} liveries, "
-                   f"{pkg.texture_count} textures")
+                   f"{pkg.texture_count} textures{marker}")
         for warning in pkg.warnings:
             typer.secho(f"      WARNING: {warning}", fg=typer.colors.YELLOW)
     for path, reason in plan.skipped:
@@ -32,6 +33,8 @@ def convert(
                                 help="Destination folder, e.g. the Community folder"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the plan and exit"),
+    force: bool = typer.Option(False, "--force", "--overwrite",
+                               help="Overwrite existing packages without asking"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show per-file progress"),
 ) -> None:
     try:
@@ -45,6 +48,12 @@ def convert(
         typer.secho("No convertible A380X liveries found.", fg=typer.colors.RED, err=True)
         raise typer.Exit(2)
     if dry_run:
+        raise typer.Exit(0)
+    existing = [pkg.output_name for pkg in plan.packages if pkg.exists]
+    if existing and not yes and not force and not typer.confirm(
+            f"{len(existing)} package(s) already exist and will be overwritten: "
+            f"{', '.join(existing)}. Overwrite?"):
+        typer.echo("Cancelled.")
         raise typer.Exit(0)
     if not yes and not typer.confirm(
             f"Convert {plan.livery_count} liveries in {plan.package_count} package(s)?"):
