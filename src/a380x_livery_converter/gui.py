@@ -4,7 +4,7 @@ import queue
 import threading
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, scrolledtext, ttk
+from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 from a380x_livery_converter.converter import execute_plan, plan_conversion
 
@@ -71,6 +71,12 @@ class ConverterApp:
     def convert(self):
         if self._plan is None:
             return
+        existing = [pkg.output_name for pkg in self._plan.packages if pkg.exists]
+        if existing and not messagebox.askyesno(
+                "Overwrite?",
+                f"{len(existing)} package(s) already exist and will be overwritten:\n"
+                + "\n".join(existing) + "\n\nOverwrite?"):
+            return
         self._busy = True
         self._set_buttons(analyze=False, convert=False, cancel=False)
         self.progressbar.config(value=0)
@@ -117,8 +123,9 @@ class ConverterApp:
         self._append_log(f"Found {plan.package_count} package(s), {plan.livery_count} "
                          f"liveries, {plan.texture_count} textures:")
         for pkg in plan.packages:
+            marker = " (already exists — will be overwritten)" if pkg.exists else ""
             self._append_log(f"  - {pkg.output_name}: {len(pkg.livery_names)} liveries, "
-                             f"{pkg.texture_count} textures")
+                             f"{pkg.texture_count} textures{marker}")
             for warning in pkg.warnings:
                 self._append_log(f"      WARNING: {warning}")
         for path, reason in plan.skipped:
