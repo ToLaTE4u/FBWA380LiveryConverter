@@ -25,6 +25,25 @@ class ConversionResult:
 
 
 @dataclass
+class PackagePlan:
+    source: Path
+    output_name: str
+    livery_names: list[str]
+    texture_count: int
+    warnings: list[str]
+
+
+@dataclass
+class _Prepared:
+    old: object
+    jobs: list["_TextureJob"]
+    warnings: list[str]
+    out_root: Path
+    flybywire_root: Path
+    folder_names: dict[int, str]
+
+
+@dataclass
 class _TextureJob:
     src: Path
     dest: Path
@@ -69,15 +88,16 @@ class Converter:
         self.dry_run = dry_run
         self.max_workers = max_workers or min(8, os.cpu_count() or 4)
 
-    def run(self) -> ConversionResult:
+    def _prepare(self) -> _Prepared:
         old = scan_package(self.input_dir)
         rename_map = load_rename_map()
         warnings: list[str] = []
+        for label in old.skipped_foreign:
+            warnings.append(f"Skipped foreign variant: {label}")
 
         out_root = self.output_dir / package_gen.package_folder_name(old)
         flybywire_root = out_root / package_gen.LIVERIES_SUBPATH / "flybywire"
         common_texture = out_root / package_gen.LIVERIES_SUBPATH / "common" / "texture"
-
         folder_names = _assign_folder_names(old.variants)
 
         jobs: list[_TextureJob] = []
@@ -87,7 +107,6 @@ class Converter:
                 digest = hashlib.sha1(src.read_bytes()).hexdigest()
                 jobs.append(_TextureJob(src, common_texture / name, f"common/{src.name}", digest))
 
-        # Variantentexturen sammeln, identische Dateien über Varianten deduplizieren
         grouped: dict[tuple[str, str], list[tuple[Variant, Path]]] = {}
         for variant in old.variants:
             if variant.has_custom_model:
@@ -111,6 +130,23 @@ class Converter:
                 jobs.append(_TextureJob(src, dest, f"{variant.texture_suffix}/{src.name}", digest))
 
         jobs = self._resolve_collisions(jobs, warnings, flybywire_root, folder_names)
+        return _Prepared(old, jobs, warnings, out_root, flybywire_root, folder_names)
+
+    def plan(self) -> PackagePlan:
+        p = self._prepare()
+        livery_names = [p.folder_names[id(v)] for v in p.old.variants]
+        return PackagePlan(
+            source=self.input_dir,
+            output_name=package_gen.package_folder_name(p.old),
+            livery_names=livery_names,
+            texture_count=len(p.jobs),
+            warnings=list(p.warnings),
+        )
+
+    def run(self) -> ConversionResult:
+        p = self._prepare()
+        old, jobs, warnings = p.old, p.jobs, p.warnings
+        out_root, flybywire_root, folder_names = p.out_root, p.flybywire_root, p.folder_names
 
         if self.dry_run:
             warnings.append(f"[dry-run] would convert {len(jobs)} textures into {out_root}")

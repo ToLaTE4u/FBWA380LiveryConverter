@@ -1,9 +1,19 @@
 import json
 
-from a380x_livery_converter.converter import Converter
+from a380x_livery_converter.converter import Converter, PackagePlan
 from tests.helpers import make_bc3_dds, make_old_package
 
 LIVERIES = "SimObjects/AirPlanes/FlyByWire_A380X/liveries"
+
+
+def test_plan_lists_liveries_and_writes_nothing(tmp_path):
+    pkg = make_old_package(tmp_path, dds_bytes=make_bc3_dds(8, 8))
+    out = tmp_path / "out"
+    plan = Converter(pkg, out).plan()
+    assert isinstance(plan, PackagePlan)
+    assert len(plan.livery_names) == 2
+    assert plan.texture_count >= 1
+    assert not out.exists()
 
 
 def _convert(tmp_path, **kwargs):
