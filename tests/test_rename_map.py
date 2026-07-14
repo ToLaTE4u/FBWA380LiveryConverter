@@ -8,6 +8,12 @@ def test_map_contains_known_entries_uppercase_keyed():
     assert len(m) > 300
 
 
+def test_engine_blur5_mapped():
+    # BLUR5 exists in the 2024 model but was missing from FBW's rename table.
+    m = load_rename_map()
+    assert m["ENGINE_BLUR5_ALBEDO.PNG"] == "A380X_ENGINE_BLUR5_ALBD.PNG"
+
+
 def test_mapped_filename_any_case():
     m = load_rename_map()
     assert map_texture_filename("A380X_FUSE1_ALBEDO.PNG.DDS", m) == ("A380X_FUSE1_ALBD.PNG.KTX2", True)
