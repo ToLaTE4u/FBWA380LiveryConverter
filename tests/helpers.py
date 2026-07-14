@@ -81,3 +81,18 @@ def make_bc3_dds(width, height, alpha=255):
     pixelformat = struct.pack("<II4s20x", 32, 0x4, b"DXT5")  # DDPF_FOURCC
     caps = struct.pack("<I16x", 0x1000)  # DDSCAPS_TEXTURE
     return b"DDS " + header + pixelformat + caps + payload
+
+
+def make_uncompressed_dds(width, height, alpha=255, r=200, g=30, b=30):
+    """A valid uncompressed B8G8R8A8 DDS (fourCC = 0).
+
+    read_dds rejects this (it only parses BC1/BC3/BC7), but texconv reads it
+    fine - it mirrors the real-world liveries that ship uncompressed textures.
+    """
+    payload = bytes([b, g, r, alpha]) * (width * height)
+    ddsd_flags = 0x1 | 0x2 | 0x4 | 0x1000 | 0x8  # CAPS|HEIGHT|WIDTH|PIXELFORMAT|PITCH
+    header = struct.pack("<7I44x", 124, ddsd_flags, height, width, width * 4, 0, 1)
+    pixelformat = struct.pack("<8I", 32, 0x41, 0, 32,  # DDPF_RGB|DDPF_ALPHAPIXELS
+                              0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)  # BGRA masks
+    caps = struct.pack("<I16x", 0x1000)  # DDSCAPS_TEXTURE
+    return b"DDS " + header + pixelformat + caps + payload
