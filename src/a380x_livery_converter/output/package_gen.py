@@ -24,7 +24,9 @@ def _sanitize(text: str) -> str:
 
 
 def package_folder_name(old: OldPackage) -> str:
-    return _sanitize(f"{old.creator}-livery-fbw-a380x-{old.title}").lower()
+    # The "-2024" suffix marks the converted output package so it is clearly
+    # distinguishable from the original MSFS 2020 livery.
+    return _sanitize(f"{old.creator}-livery-fbw-a380x-{old.title}-2024").lower()
 
 
 def livery_folder_name(variant: Variant) -> str:

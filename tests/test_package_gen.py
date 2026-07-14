@@ -22,9 +22,10 @@ def _variant(suffix="A7APC"):
                    texture_dir=None, has_custom_model=False)
 
 
-def test_package_folder_name_sanitized():
+def test_package_folder_name_sanitized_with_2024_suffix():
     name = package_folder_name(_old_package())
-    assert name == "hues-valexyo-livery-fbw-a380x-fleet-pack-sd-hd"
+    assert name == "hues-valexyo-livery-fbw-a380x-fleet-pack-sd-hd-2024"
+    assert name.endswith("-2024")
     assert " " not in name and ":" not in name
 
 
