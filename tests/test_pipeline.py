@@ -71,6 +71,16 @@ def test_convert_uncompressed_dds(tmp_path):
     assert (dest.parent / "U.PNG.KTX2.json").is_file()
 
 
+def test_convert_uncompressed_transparent_sets_transp_flag(tmp_path):
+    """An uncompressed source with alpha must keep its transparency through the
+    BGRA8 -> BC7 conversion and set the ASOBO_transp flag."""
+    src = tmp_path / "UT.PNG.DDS"
+    src.write_bytes(make_uncompressed_dds(8, 8, alpha=40))
+    dest = tmp_path / "out" / "UT.PNG.KTX2"
+    convert_texture(src, dest, tmp_path / "work")
+    assert b"ASOBO_transp\x00\x01" in dest.read_bytes()
+
+
 def test_has_transparency_bc7(tmp_path):
     opaque = read_dds(dds_to_bc7_dds_src(tmp_path, "o", alpha=255))
     transparent = read_dds(dds_to_bc7_dds_src(tmp_path, "t", alpha=0))
