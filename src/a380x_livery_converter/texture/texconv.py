@@ -23,7 +23,10 @@ def dds_to_bc7_dds(src: Path, out_dir: Path) -> Path:
         "-o", str(out_dir),
         str(src),
     ]
+    # stdin=DEVNULL: a windowed (no-console) exe has no valid stdin handle, and
+    # inheriting it makes CreateProcess fail with WinError 6 (invalid handle).
     proc = subprocess.run(cmd, capture_output=True, text=True,
+                          stdin=subprocess.DEVNULL,
                           creationflags=subprocess.CREATE_NO_WINDOW)
     result = _find_ci(out_dir, src.stem + ".dds")
     if proc.returncode != 0 or result is None:
