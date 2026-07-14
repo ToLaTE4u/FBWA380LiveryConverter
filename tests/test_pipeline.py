@@ -1,10 +1,12 @@
 import struct
 
+import pytest
 import texture2ddecoder
 
-from a380x_livery_converter.texture.dds import read_dds
+from a380x_livery_converter.texture.dds import DdsError, read_dds
 from a380x_livery_converter.texture.pipeline import convert_texture, has_transparency
-from tests.helpers import make_bc3_dds
+from a380x_livery_converter.texture.texconv import dds_to_bc7_dds
+from tests.helpers import make_bc3_dds, make_uncompressed_dds
 
 
 def _largest_level(ktx2_bytes):
@@ -54,3 +56,40 @@ def test_has_transparency(tmp_path):
     transparent.write_bytes(make_bc3_dds(8, 8, alpha=0))
     assert has_transparency(read_dds(opaque)) is False
     assert has_transparency(read_dds(transparent)) is True
+
+
+def test_convert_uncompressed_dds(tmp_path):
+    """A DDS format our reader cannot parse (uncompressed RGBA) must still
+    convert - texconv reads it, and read_dds is no longer a source gatekeeper."""
+    src = tmp_path / "U.PNG.DDS"
+    src.write_bytes(make_uncompressed_dds(8, 8))
+    with pytest.raises(DdsError):
+        read_dds(src)  # confirm our reader genuinely rejects this source format
+    dest = tmp_path / "out" / "U.PNG.KTX2"
+    convert_texture(src, dest, tmp_path / "work")
+    assert dest.read_bytes()[:4] == b"\xabKTX"
+    assert (dest.parent / "U.PNG.KTX2.json").is_file()
+
+
+def test_convert_uncompressed_transparent_sets_transp_flag(tmp_path):
+    """An uncompressed source with alpha must keep its transparency through the
+    BGRA8 -> BC7 conversion and set the ASOBO_transp flag."""
+    src = tmp_path / "UT.PNG.DDS"
+    src.write_bytes(make_uncompressed_dds(8, 8, alpha=40))
+    dest = tmp_path / "out" / "UT.PNG.KTX2"
+    convert_texture(src, dest, tmp_path / "work")
+    assert b"ASOBO_transp\x00\x01" in dest.read_bytes()
+
+
+def test_has_transparency_bc7(tmp_path):
+    opaque = read_dds(dds_to_bc7_dds_src(tmp_path, "o", alpha=255))
+    transparent = read_dds(dds_to_bc7_dds_src(tmp_path, "t", alpha=0))
+    assert opaque.format == "BC7" and transparent.format == "BC7"
+    assert has_transparency(opaque) is False
+    assert has_transparency(transparent) is True
+
+
+def dds_to_bc7_dds_src(tmp_path, tag, alpha):
+    src = tmp_path / f"{tag}.dds"
+    src.write_bytes(make_bc3_dds(8, 8, alpha=alpha))
+    return dds_to_bc7_dds(src, tmp_path / f"{tag}out")

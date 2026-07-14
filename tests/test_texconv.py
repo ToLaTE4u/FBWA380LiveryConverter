@@ -30,3 +30,23 @@ def test_invalid_input_raises(tmp_path):
     src.write_bytes(b"garbage")
     with pytest.raises(TexconvError):
         dds_to_bc7_dds(src, tmp_path / "out")
+
+
+def test_subprocess_uses_devnull_stdin(monkeypatch, tmp_path):
+    """A windowed (no-console) exe has no valid stdin handle; texconv must be
+    launched with stdin=DEVNULL or it fails with WinError 6 in the GUI."""
+    import subprocess
+
+    from a380x_livery_converter.texture import texconv as texconv_mod
+    captured = {}
+    real_run = subprocess.run
+
+    def fake_run(cmd, **kwargs):
+        captured.update(kwargs)
+        return real_run(cmd, **kwargs)
+
+    monkeypatch.setattr(texconv_mod.subprocess, "run", fake_run)
+    src = tmp_path / "T.PNG.DDS"
+    src.write_bytes(make_bc3_dds(8, 8))
+    dds_to_bc7_dds(src, tmp_path / "out")
+    assert captured.get("stdin") is subprocess.DEVNULL
