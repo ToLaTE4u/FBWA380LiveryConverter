@@ -1,6 +1,6 @@
 [project]
 name = "a380x-livery-converter"
-version = "0.1.3"
+version = "0.2.0"
 description = "Convert FBW A380X MSFS 2020 liveries to native MSFS 2024 packages"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
