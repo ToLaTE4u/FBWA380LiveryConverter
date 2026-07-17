@@ -1,6 +1,7 @@
 """Tkinter GUI front end."""
 
 import importlib.metadata
+import os
 import queue
 import threading
 import tkinter as tk
@@ -20,6 +21,7 @@ class ConverterApp:
         self.queue: queue.Queue = queue.Queue()
         self._busy = False
         self._plan = None
+        self._output_dir: Path | None = None
 
         frame = ttk.Frame(root, padding=10)
         frame.pack(fill="both", expand=True)
@@ -36,11 +38,15 @@ class ConverterApp:
         self.cancel_button = ttk.Button(buttons, text="Cancel", command=self.cancel,
                                         state="disabled")
         self.cancel_button.pack(side="left")
+        self.open_folder_button = ttk.Button(buttons, text="Open Output Folder",
+                                             command=self._open_folder, state="disabled")
+        self.open_folder_button.pack(side="left", padx=6)
 
         self.progressbar = ttk.Progressbar(frame, maximum=100)
         self.progressbar.grid(row=3, column=0, columnspan=3, sticky="ew")
         self.log = scrolledtext.ScrolledText(frame, height=16, state="disabled")
         self.log.grid(row=4, column=0, columnspan=3, sticky="nsew", pady=(8, 0))
+        self.log.bind("<1>", lambda e: self.log.focus_set())
         frame.columnconfigure(1, weight=1)
         frame.rowconfigure(4, weight=1)
 
@@ -94,6 +100,8 @@ class ConverterApp:
 
     def cancel(self):
         self._plan = None
+        self._output_dir = None
+        self.open_folder_button.config(state="disabled")
         self._append_log("Cancelled.")
         self._reset()
 
@@ -115,6 +123,8 @@ class ConverterApp:
             elif kind == "error":
                 self._append_log(f"ERROR: {item[1]}")
                 self._plan = None
+                self._output_dir = None
+                self.open_folder_button.config(state="disabled")
                 self._reset()
         if self._busy:
             self.root.after(100, self._poll)
@@ -139,6 +149,10 @@ class ConverterApp:
             self._set_buttons(analyze=True, convert=False, cancel=False)
 
     def _show_result(self, result):
+        self.progressbar.config(value=self.progressbar["maximum"])
+        if result.results:
+            self._output_dir = result.results[0].output_root.parent
+            self.open_folder_button.config(state="normal")
         self._append_log("")
         self._append_log(f"Done: {result.converted} textures converted, "
                          f"{result.skipped_textures} skipped.")
@@ -149,8 +163,14 @@ class ConverterApp:
         for path, reason in result.skipped:
             self._append_log(f"SKIPPED {Path(path).name}: {reason}")
 
+    def _open_folder(self):
+        if self._output_dir is not None:
+            os.startfile(str(self._output_dir))
+
     def _reset(self):
         self._busy = False
+        if self._output_dir is None:
+            self.open_folder_button.config(state="disabled")
         self._set_buttons(analyze=True, convert=False, cancel=False)
 
     def _set_buttons(self, analyze, convert, cancel):
