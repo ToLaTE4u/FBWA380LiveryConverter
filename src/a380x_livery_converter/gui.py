@@ -166,5 +166,8 @@ class ConverterApp:
 
 def main() -> None:
     root = tk.Tk()
+    icon_path = Path(__file__).parent / "resources" / "app.ico"
+    if icon_path.exists():
+        root.iconbitmap(str(icon_path))
     ConverterApp(root)
     root.mainloop()
