@@ -1,5 +1,6 @@
 """Tkinter GUI front end."""
 
+import importlib.metadata
 import queue
 import threading
 import tkinter as tk
@@ -10,9 +11,9 @@ from a380x_livery_converter.converter import execute_plan, plan_conversion
 
 
 class ConverterApp:
-    def __init__(self, root: tk.Tk):
+    def __init__(self, root: tk.Tk, version: str = "dev"):
         self.root = root
-        root.title("FBW A380X Livery Converter (MSFS 2020 -> 2024)")
+        root.title(f"FBW A380X Livery Converter v{version} (MSFS 2020 -> 2024)")
         root.geometry("700x480")
         self.input_var = tk.StringVar()
         self.output_var = tk.StringVar()
@@ -165,9 +166,17 @@ class ConverterApp:
 
 
 def main() -> None:
+    try:
+        version = importlib.metadata.version("a380x-livery-converter")
+    except importlib.metadata.PackageNotFoundError:
+        version = "dev"
     root = tk.Tk()
+    texconv_path = Path(__file__).parent / "resources" / "texconv.exe"
+    if not texconv_path.exists():
+        messagebox.showerror("Missing dependency", "texconv.exe not found in resources. The application cannot convert textures without it.")
+        return
     icon_path = Path(__file__).parent / "resources" / "app.ico"
     if icon_path.exists():
         root.iconbitmap(str(icon_path))
-    ConverterApp(root)
+    ConverterApp(root, version=version)
     root.mainloop()
