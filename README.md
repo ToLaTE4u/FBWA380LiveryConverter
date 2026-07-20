@@ -12,13 +12,15 @@ no SDK, no developer mode, no manual steps.
 
 ## Download & install
 
-1. Download `A380XLiveryConverter.exe` **only from an official source** — the
-   [GitHub Releases](../../releases) page or flightsim.to.
-2. That's it — it's a single self-contained file. No installer, no Python required.
+1. Download the `A380XLiveryConverter-v*.zip` **only from an official source** —
+   the [GitHub Releases](../../releases) page or flightsim.to.
+2. **Extract the whole ZIP** to a folder of your choice (right-click → Extract All).
+   Keep every file together in that folder — the program needs the files next to it.
+3. No installer and no Python required.
 
 ## How to use it (graphical)
 
-1. Double-click `A380XLiveryConverter.exe`.
+1. Open the extracted folder and double-click `A380XLiveryConverter.exe`.
 2. **Old livery package or folder:** select the extracted folder of the old livery —
    the one that contains `manifest.json` and a `SimObjects` folder — or a folder
    containing several such packages to convert them all at once.
