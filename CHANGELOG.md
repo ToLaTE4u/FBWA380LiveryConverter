@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.0
+
+- Distribute as a standalone folder inside a ZIP instead of a single
+  self-extracting executable — this avoids the antivirus false positives that
+  blocked the upload on flightsim.to. Download the ZIP, extract the whole folder,
+  and run `A380XLiveryConverter.exe` from inside it.
+- `texconv.exe` now ships as a normal file next to the application instead of
+  being embedded and unpacked to a temp folder at runtime.
+
 ## v0.2.0
 
 - Add application icon to the GUI window and exe

@@ -2,7 +2,7 @@
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
-# Derive version from git tag (v0.2.0 -> semver 0.2.0, Windows version 0.2.0.0)
+# Derive version from git tag (v0.3.0 -> semver 0.3.0, Windows version 0.3.0.0)
 $rawTag = git describe --tags --abbrev=0 2>$null
 if ($rawTag -match '^v?(\d+\.\d+\.\d+)') {
     $semver = $Matches[1]
