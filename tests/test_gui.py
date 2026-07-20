@@ -34,6 +34,31 @@ def test_analyze_without_folders_logs_hint():
         root.destroy()
 
 
+def test_releases_url_targets_repo_releases():
+    from a380x_livery_converter import gui as gui_mod
+    assert gui_mod.RELEASES_URL == (
+        "https://github.com/ToLaTE4u/FBWA380LiveryConverter/releases/latest")
+
+
+def test_open_releases_page_opens_browser(monkeypatch):
+    from a380x_livery_converter import gui as gui_mod
+    opened = []
+    monkeypatch.setattr(gui_mod.webbrowser, "open", lambda url: opened.append(url))
+    gui_mod.open_releases_page()
+    assert opened == [gui_mod.RELEASES_URL]
+
+
+def test_updates_button_present_and_enabled():
+    from a380x_livery_converter.gui import ConverterApp
+    root = _make_root()
+    try:
+        app = ConverterApp(root)
+        assert app.updates_button.cget("text") == "Check for Updates"
+        assert str(app.updates_button.cget("state")) != "disabled"
+    finally:
+        root.destroy()
+
+
 def test_convert_declined_overwrite_does_not_start(monkeypatch):
     from types import SimpleNamespace
 

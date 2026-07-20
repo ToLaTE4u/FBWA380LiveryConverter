@@ -5,10 +5,18 @@ import os
 import queue
 import threading
 import tkinter as tk
+import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 from a380x_livery_converter.converter import execute_plan, plan_conversion
+
+RELEASES_URL = "https://github.com/ToLaTE4u/FBWA380LiveryConverter/releases/latest"
+
+
+def open_releases_page() -> None:
+    """Open the tool's GitHub releases page in the default browser."""
+    webbrowser.open(RELEASES_URL)
 
 
 class ConverterApp:
@@ -41,6 +49,9 @@ class ConverterApp:
         self.open_folder_button = ttk.Button(buttons, text="Open Output Folder",
                                              command=self._open_folder, state="disabled")
         self.open_folder_button.pack(side="left", padx=6)
+        self.updates_button = ttk.Button(buttons, text="Check for Updates",
+                                         command=open_releases_page)
+        self.updates_button.pack(side="right")
 
         self.progressbar = ttk.Progressbar(frame, maximum=100)
         self.progressbar.grid(row=3, column=0, columnspan=3, sticky="ew")
