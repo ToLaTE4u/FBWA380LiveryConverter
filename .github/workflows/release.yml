@@ -27,13 +27,13 @@ jobs:
         run: powershell -ExecutionPolicy Bypass -File scripts/build_exe.ps1
 
       - name: Smoke-test the executable
-        run: ./dist/A380XLiveryConverter.exe convert --help
+        run: ./dist/A380XLiveryConverter/A380XLiveryConverter.exe convert --help
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: A380XLiveryConverter
-          path: dist/A380XLiveryConverter.exe
+          path: dist/A380XLiveryConverter-v*.zip
           if-no-files-found: error
 
       - name: Extract changelog for tag
@@ -51,6 +51,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/A380XLiveryConverter.exe
+          files: dist/A380XLiveryConverter-v*.zip
           body: ${{ steps.changelog.outputs.body }}
           fail_on_unmatched_files: true
