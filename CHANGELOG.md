@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.1
+
+- Add a "Check for Updates" button that opens the tool's GitHub releases page in
+  your browser, so you can grab the latest version.
+
 ## v0.3.0
 
 - Distribute as a standalone folder inside a ZIP instead of a single
