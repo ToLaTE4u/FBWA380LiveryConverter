@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.3.2
+
+- Analyze is much faster on large folders. It used to read every texture in full
+  to fingerprint it; it now only reads the ones that can actually be duplicates
+  of each other. A 132-package, 37 GB fleet folder went from 58 s to 2.3 s.
+- Analyze now reports progress per package instead of leaving the window silent
+  for minutes on large batch folders.
+- Analyze and Convert can be cancelled while they run. Cancel used to be greyed
+  out for the whole run, which made the tool look frozen.
+- Reduce texture conversion to 2 parallel jobs. `texconv.exe` is already
+  multithreaded, so 8 jobs gave no extra throughput but tripled peak memory and
+  left no CPU for the rest of the machine.
+- Convert reuses the work done during Analyze instead of reading and hashing
+  every texture a second time.
+- Clearer skip reasons: packages that are already in MSFS 2024 format now say so
+  instead of reporting "no FBW A380X livery found (detected: unknown)".
+- Liveries marked `isUserSelectable = 0` are shared texture depots, not
+  liveries. They no longer show up as selectable entries in the MSFS livery
+  picker. A package that contains nothing but depots - such as the Emirates
+  "commons" package - is now converted into a shared-texture package instead of
+  being skipped, so the tail numbers that fall back to it keep their fuselage
+  and cabin.
+- Warn when a livery falls back to textures no package in the folder provides.
+  Fleet packs such as the Emirates collection keep their shared textures in a
+  separate "commons" package, which the sim merges in at runtime - those
+  fallbacks are fine and are no longer reported. Only fallbacks that nothing in
+  the selected folder can serve are flagged now.
+
 ## v0.3.1
 
 - Add a "Check for Updates" button that opens the tool's GitHub releases page in

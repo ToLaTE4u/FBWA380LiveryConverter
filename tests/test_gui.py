@@ -1,3 +1,4 @@
+import threading
 import tkinter as tk
 
 import pytest
@@ -55,6 +56,51 @@ def test_updates_button_present_and_enabled():
         app = ConverterApp(root)
         assert app.updates_button.cget("text") == "Check for Updates"
         assert str(app.updates_button.cget("state")) != "disabled"
+    finally:
+        root.destroy()
+
+
+def test_cancel_button_enabled_while_analyzing(monkeypatch):
+    """Fix 2: Analyze used to disable every button, leaving a dead window for
+    the minutes it spends hashing textures."""
+    from a380x_livery_converter import gui as gui_mod
+    from a380x_livery_converter.gui import ConverterApp
+    root = _make_root()
+    try:
+        app = ConverterApp(root)
+        started = threading.Event()
+        release = threading.Event()
+
+        def blocking_plan(input_dir, output_dir, progress=None, cancel=None):
+            started.set()
+            release.wait(5)
+            raise gui_mod.ConversionCancelled("cancelled")
+
+        monkeypatch.setattr(gui_mod, "plan_conversion", blocking_plan)
+        app.input_var.set(str(root and "."))
+        app.output_var.set(".")
+        app.analyze()
+        assert started.wait(5)
+        assert str(app.cancel_button.cget("state")) == "normal"
+        app.cancel()
+        assert app._cancel.is_set()
+        release.set()
+    finally:
+        root.destroy()
+
+
+def test_cancelled_worker_resets_ui():
+    from a380x_livery_converter.gui import ConverterApp
+    root = _make_root()
+    try:
+        app = ConverterApp(root)
+        app._busy = True
+        app.queue.put(("cancelled",))
+        app._poll()
+        assert app._busy is False
+        assert app._plan is None
+        assert "Cancelled." in app.log.get("1.0", "end")
+        assert str(app.analyze_button.cget("state")) == "normal"
     finally:
         root.destroy()
 

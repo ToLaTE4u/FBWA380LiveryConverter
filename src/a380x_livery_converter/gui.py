@@ -9,7 +9,9 @@ import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-from a380x_livery_converter.converter import execute_plan, plan_conversion
+from a380x_livery_converter.converter import (
+    ConversionCancelled, execute_plan, plan_conversion,
+)
 
 RELEASES_URL = "https://github.com/ToLaTE4u/FBWA380LiveryConverter/releases/latest"
 
@@ -30,6 +32,7 @@ class ConverterApp:
         self._busy = False
         self._plan = None
         self._output_dir: Path | None = None
+        self._cancel = threading.Event()
 
         frame = ttk.Frame(root, padding=10)
         frame.pack(fill="both", expand=True)
@@ -74,15 +77,23 @@ class ConverterApp:
             self._append_log("Please select both folders.")
             return
         self._busy = True
-        self._set_buttons(analyze=False, convert=False, cancel=False)
-        self._append_log("Analyzing...")
+        self._cancel.clear()
+        self.progressbar.config(value=0)
+        self._set_buttons(analyze=False, convert=False, cancel=True)
+        self._append_log("Analyzing... (reading every texture, this can take a while)")
         threading.Thread(target=self._do_analyze,
                          args=(Path(input_dir), Path(output_dir)), daemon=True).start()
         self.root.after(100, self._poll)
 
     def _do_analyze(self, input_dir, output_dir):
         try:
-            self.queue.put(("plan", plan_conversion(input_dir, output_dir)))
+            plan = plan_conversion(
+                input_dir, output_dir,
+                progress=lambda d, t, m: self.queue.put(("progress", d, t, m)),
+                cancel=self._cancel)
+            self.queue.put(("plan", plan))
+        except ConversionCancelled:
+            self.queue.put(("cancelled",))
         except Exception as exc:
             self.queue.put(("error", exc))
 
@@ -96,7 +107,8 @@ class ConverterApp:
                 + "\n".join(existing) + "\n\nOverwrite?"):
             return
         self._busy = True
-        self._set_buttons(analyze=False, convert=False, cancel=False)
+        self._cancel.clear()
+        self._set_buttons(analyze=False, convert=False, cancel=True)
         self.progressbar.config(value=0)
         threading.Thread(target=self._do_convert, args=(self._plan,), daemon=True).start()
         self.root.after(100, self._poll)
@@ -104,12 +116,22 @@ class ConverterApp:
     def _do_convert(self, plan):
         try:
             result = execute_plan(
-                plan, progress=lambda d, t, m: self.queue.put(("progress", d, t, m)))
+                plan, progress=lambda d, t, m: self.queue.put(("progress", d, t, m)),
+                cancel=self._cancel)
             self.queue.put(("done", result))
+        except ConversionCancelled:
+            self.queue.put(("cancelled",))
         except Exception as exc:
             self.queue.put(("error", exc))
 
     def cancel(self):
+        if self._busy:
+            # A worker thread is running: ask it to stop and let _poll report
+            # back. It finishes the texture currently in texconv first.
+            self._cancel.set()
+            self.cancel_button.config(state="disabled")
+            self._append_log("Cancelling, waiting for the running texture...")
+            return
         self._plan = None
         self._output_dir = None
         self.open_folder_button.config(state="disabled")
@@ -129,6 +151,10 @@ class ConverterApp:
                 self._append_log(f"[{done}/{total}] {message}")
             elif kind == "done":
                 self._show_result(item[1])
+                self._plan = None
+                self._reset()
+            elif kind == "cancelled":
+                self._append_log("Cancelled.")
                 self._plan = None
                 self._reset()
             elif kind == "error":

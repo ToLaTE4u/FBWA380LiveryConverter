@@ -37,8 +37,12 @@ def convert(
                                help="Overwrite existing packages without asking"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show per-file progress"),
 ) -> None:
+    def progress(done: int, total: int, message: str) -> None:
+        if verbose:
+            typer.echo(f"[{done}/{total}] {message}")
+
     try:
-        plan = plan_conversion(input_dir, output)
+        plan = plan_conversion(input_dir, output, progress=progress)
     except Exception as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2)
@@ -59,10 +63,6 @@ def convert(
             f"Convert {plan.livery_count} liveries in {plan.package_count} package(s)?"):
         typer.echo("Cancelled.")
         raise typer.Exit(0)
-
-    def progress(done: int, total: int, message: str) -> None:
-        if verbose:
-            typer.echo(f"[{done}/{total}] {message}")
 
     try:
         result = execute_plan(plan, progress=progress)

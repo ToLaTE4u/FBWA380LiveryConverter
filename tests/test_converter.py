@@ -1,7 +1,11 @@
 import json
 import shutil
+import threading
+from pathlib import Path
 
-from a380x_livery_converter.converter import Converter, PackagePlan
+import pytest
+
+from a380x_livery_converter.converter import ConversionCancelled, Converter, PackagePlan
 from tests.helpers import make_bc3_dds, make_old_package
 
 LIVERIES = "SimObjects/AirPlanes/FlyByWire_A380X/liveries"
@@ -275,3 +279,207 @@ def test_execute_plan_batch_writes_two_packages_and_report(tmp_path):
     for r in result.results:
         assert r.output_root.is_dir()
         assert (r.output_root / "manifest.json").is_file()
+
+
+def test_only_comparable_textures_are_read_for_hashing(tmp_path, monkeypatch):
+    """Analyze used to read all 37 GB of a fleet folder just to hash it. A
+    content digest is only needed where two files could actually meet: a mapped
+    name occurring once in the package has nothing to be compared against."""
+    pkg = make_old_package(tmp_path, suffixes=("A7APC", "A7APD"),
+                           dds_bytes=make_bc3_dds(8, 8), with_common=False,
+                           with_model=False)
+    unique = (pkg / "SimObjects" / "AirPlanes" / "A388_TST_A7APC" / "TEXTURE.A7APC"
+              / "A380X_FUSE3_ALBEDO.PNG.DDS")
+    unique.write_bytes(make_bc3_dds(16, 16))
+
+    read = []
+    original = Path.read_bytes
+    monkeypatch.setattr(Path, "read_bytes",
+                        lambda self: (read.append(self), original(self))[1])
+    Converter(pkg, tmp_path / "out").plan()
+
+    assert unique not in read, "texture with a package-unique name was read"
+    # both variants carry A380X_FUSE1_ALBEDO, so those do need comparing
+    shared = [p for p in read if p.name == "A380X_FUSE1_ALBEDO.PNG.DDS"]
+    assert len(shared) == 2
+
+
+def test_unique_texture_still_reaches_its_livery_folder(tmp_path):
+    pkg = make_old_package(tmp_path, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                           with_common=False, with_model=False)
+    (pkg / "SimObjects" / "AirPlanes" / "A388_TST_A7APC" / "TEXTURE.A7APC"
+     / "A380X_FUSE3_ALBEDO.PNG.DDS").write_bytes(make_bc3_dds(16, 16))
+    result = Converter(pkg, tmp_path / "out").run()
+    assert (result.output_root / LIVERIES / "flybywire" / "FlyByWire_A380_842_A7APC"
+            / "texture" / "A380X_FUSE3_ALBD.PNG.KTX2").is_file()
+
+
+def test_fallback_served_by_another_package_in_the_batch_is_not_warned_about(tmp_path):
+    """The Emirates fleet splits liveries and shared textures across packages on
+    purpose. Warning on every one of them buried the real problems."""
+    parent = tmp_path / "in"
+    parent.mkdir()
+    cfg = "[fltsim]\nfallback.1=..\\..\\A388_TST_CMN\\texture.CMN\n"
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="tail",
+                     texture_cfg=cfg)
+    make_old_package(parent, suffixes=(), depot_suffixes=("CMN",),
+                     dds_bytes=make_bc3_dds(8, 8), with_common=False,
+                     with_model=False, name="commons")
+    plan = plan_conversion(parent, tmp_path / "out")
+    tail = next(p for p in plan.packages if p.source.name == "tail")
+    assert not [w for w in tail.warnings if "A388_TST_CMN" in w], tail.warnings
+
+
+def test_fallback_missing_from_the_whole_batch_is_still_warned_about(tmp_path):
+    parent = tmp_path / "in"
+    parent.mkdir()
+    cfg = "[fltsim]\nfallback.1=..\\..\\A388_TST_NOWHERE\\texture.NOWHERE\n"
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="tail",
+                     texture_cfg=cfg)
+    plan = plan_conversion(parent, tmp_path / "out")
+    joined = "\n".join(plan.packages[0].warnings)
+    assert "A388_TST_NOWHERE" in joined
+
+
+def test_external_fallback_warns_that_livery_will_be_incomplete(tmp_path):
+    cfg = ("[fltsim]\n"
+           "fallback.1=..\\..\\FBW A380 EKNA6CMN\\texture.EKNA6CMN\n"
+           "fallback.2=..\\..\\FlyByWire_A380_842\\texture\n")
+    pkg = make_old_package(tmp_path, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                           with_common=False, with_model=False, texture_cfg=cfg)
+    plan = Converter(pkg, tmp_path / "out").plan()
+    joined = "\n".join(plan.warnings)
+    assert "EKNA6CMN" in joined
+    assert "incomplete" in joined.lower()
+    # the harmless base-aircraft fallback must not be reported
+    assert "FlyByWire_A380_842" not in joined
+
+
+def test_depot_textures_still_land_in_common(tmp_path):
+    """A depot inside the package is what its sibling liveries fall back to, so
+    dropping it as a livery must not drop its textures."""
+    pkg = make_old_package(tmp_path, suffixes=("A7APC",), depot_suffixes=("CMN",),
+                           dds_bytes=make_bc3_dds(8, 8), with_common=False,
+                           with_model=False)
+    depot_dds = (pkg / "SimObjects" / "AirPlanes" / "A388_TST_CMN" / "TEXTURE.CMN"
+                 / "A380X_FUSE2_ALBEDO.PNG.DDS")
+    depot_dds.write_bytes(make_bc3_dds(16, 16))
+    result = Converter(pkg, tmp_path / "out").run()
+    root = result.output_root
+    flybywire = root / LIVERIES / "flybywire"
+    assert [p.name for p in flybywire.iterdir()] == ["FlyByWire_A380_842_A7APC"]
+    assert (root / LIVERIES / "common" / "texture"
+            / "A380X_FUSE2_ALBD.PNG.KTX2").is_file()
+    assert any("depot" in w.lower() for w in result.warnings), result.warnings
+
+
+def test_depot_only_package_converts_into_a_shared_texture_package(tmp_path):
+    """It carries no livery of its own, but its textures are what the sibling
+    packages fall back to - they have to reach the shared common folder."""
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), dds_bytes=make_bc3_dds(8, 8),
+                     with_common=False, with_model=False, name="tail")
+    make_old_package(parent, suffixes=(), depot_suffixes=("CMN",),
+                     dds_bytes=make_bc3_dds(8, 8), with_common=False,
+                     with_model=False, name="commons")
+    plan = plan_conversion(parent, tmp_path / "out")
+    assert plan.package_count == 2
+    assert not plan.skipped, plan.skipped
+
+    result = execute_plan(plan)
+    commons = next(r for r in result.results if not any(
+        (r.output_root / LIVERIES / "flybywire").glob("*")))
+    assert (commons.output_root / LIVERIES / "common" / "texture"
+            / "A380X_FUSE1_ALBD.PNG.KTX2").is_file()
+
+
+def _batch(tmp_path, names=("pkgA", "pkgB")):
+    parent = tmp_path / "in"
+    parent.mkdir()
+    for i, name in enumerate(names):
+        make_old_package(parent, suffixes=(f"S{i}",), dds_bytes=make_bc3_dds(8, 8),
+                         with_common=False, with_model=False, name=name)
+    return parent
+
+
+def test_default_max_workers_is_two(tmp_path):
+    """texconv is internally multithreaded: throughput saturates at 2 workers
+    while 8 triple the peak RAM and starve the rest of the machine."""
+    assert Converter(tmp_path, tmp_path).max_workers == 2
+
+
+def test_plan_conversion_reports_progress_per_package(tmp_path):
+    parent = _batch(tmp_path)
+    calls = []
+    plan_conversion(parent, tmp_path / "out",
+                    progress=lambda d, t, m: calls.append((d, t, m)))
+    assert [d for d, _, _ in calls] == [1, 2]
+    assert all(t == 2 for _, t, _ in calls)
+    assert any("pkgA" in m for _, _, m in calls)
+
+
+def test_plan_conversion_aborts_when_cancelled(tmp_path):
+    parent = _batch(tmp_path)
+    cancel = threading.Event()
+    cancel.set()
+    with pytest.raises(ConversionCancelled):
+        plan_conversion(parent, tmp_path / "out", cancel=cancel)
+
+
+def test_plan_conversion_cancel_stops_between_packages(tmp_path):
+    parent = _batch(tmp_path)
+    cancel = threading.Event()
+    seen = []
+
+    def progress(done, total, message):
+        seen.append(message)
+        cancel.set()  # abort right after the first package
+
+    with pytest.raises(ConversionCancelled):
+        plan_conversion(parent, tmp_path / "out", progress=progress, cancel=cancel)
+    assert len(seen) == 1
+
+
+def test_execute_plan_aborts_when_cancelled(tmp_path):
+    parent = _batch(tmp_path)
+    out = tmp_path / "out"
+    plan = plan_conversion(parent, out)
+    cancel = threading.Event()
+    cancel.set()
+    with pytest.raises(ConversionCancelled):
+        execute_plan(plan, cancel=cancel)
+
+
+def test_prepare_runs_once_per_package_across_plan_and_execute(tmp_path, monkeypatch):
+    """Fix 3: planning already hashes every DDS of a package - executing it
+    must reuse that work instead of reading all textures a second time."""
+    parent = _batch(tmp_path, names=("pkgA", "pkgB", "pkgC"))
+    calls = []
+    original = Converter._prepare
+
+    def counting(self):
+        calls.append(self.input_dir)
+        return original(self)
+
+    monkeypatch.setattr(Converter, "_prepare", counting)
+    plan = plan_conversion(parent, tmp_path / "out")
+    # all three share manifest title/creator, so two get renamed on dedupe -
+    # a rename must not force a re-prepare
+    assert len({p.output_name for p in plan.packages}) == 3
+    execute_plan(plan)
+    assert len(calls) == 3
+
+
+def test_renamed_output_package_writes_into_its_own_folder(tmp_path):
+    parent = _batch(tmp_path)  # both helper packages share manifest title/creator
+    out = tmp_path / "out"
+    result = execute_plan(plan_conversion(parent, out))
+    assert len({r.output_root for r in result.results}) == 2
+    for r in result.results:
+        textures = list(r.output_root.rglob("*.KTX2"))
+        assert textures
+        for texture in textures:
+            assert texture.is_relative_to(r.output_root)

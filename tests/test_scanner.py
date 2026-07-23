@@ -4,6 +4,7 @@ import pytest
 
 from a380x_livery_converter.core.scanner import (
     NotAnA380XPackageError,
+    container_names,
     find_packages,
     scan_package,
 )
@@ -61,6 +62,101 @@ def test_rejection_message_names_detected_aircraft(tmp_path):
     cfg = pkg / "SimObjects" / "AirPlanes" / "A388_TST_X" / "aircraft.cfg"
     cfg.write_text(cfg.read_text().replace("FlyByWire_A380_842", "FlyByWire_A32NX"))
     with pytest.raises(NotAnA380XPackageError, match="A32NX"):
+        scan_package(pkg)
+
+
+def test_depot_variant_is_not_offered_as_a_livery(tmp_path):
+    """isUserSelectable = 0 marks a shared texture depot, not a livery - it must
+    not show up in the MSFS livery picker."""
+    pkg = make_old_package(tmp_path, suffixes=("A7APC",), depot_suffixes=("CMN",))
+    result = scan_package(pkg)
+    assert [v.texture_suffix for v in result.variants] == ["A7APC"]
+    assert [d.texture_suffix for d in result.depots] == ["CMN"]
+
+
+def test_depot_only_package_is_scanned_instead_of_rejected(tmp_path):
+    """The Emirates fleet ships its shared textures as a package of their own.
+    Rejecting it would strip exactly the textures every sibling falls back to."""
+    pkg = make_old_package(tmp_path, suffixes=(), depot_suffixes=("EKNA6CMN", "EKOA6CMN"))
+    result = scan_package(pkg)
+    assert result.variants == []
+    assert [d.texture_suffix for d in result.depots] == ["EKNA6CMN", "EKOA6CMN"]
+
+
+def test_package_without_variants_or_depots_is_still_rejected(tmp_path):
+    pkg = tmp_path / "junk"
+    (pkg / "SimObjects" / "AirPlanes" / "SomeFolder").mkdir(parents=True)
+    with pytest.raises(NotAnA380XPackageError):
+        scan_package(pkg)
+
+
+def test_fallback_into_another_package_is_recorded(tmp_path):
+    """The Emirates fleet keeps its shared textures in a separate package; those
+    fallbacks cannot resolve inside this package and must be reported."""
+    cfg = ("[fltsim]\n"
+           "fallback.1=..\\..\\FBW A380 EKNA6CMN\\texture.EKNA6CMN\n"
+           "fallback.2=..\\..\\FlyByWire_A380_842\\texture\n"
+           "fallback.3=..\\..\\..\\..\\texture\\Glass\n")
+    pkg = make_old_package(tmp_path, suffixes=("A7APC",), with_common=False,
+                           texture_cfg=cfg)
+    result = scan_package(pkg)
+    assert result.variants[0].missing_fallbacks == [
+        "..\\..\\FBW A380 EKNA6CMN\\texture.EKNA6CMN"]
+
+
+def test_fallback_into_a_container_present_elsewhere_in_the_batch_is_not_reported(tmp_path):
+    """MSFS merges every Community package into one virtual file system, so a
+    fallback into a sibling *package* resolves at runtime and is not missing."""
+    cfg = ("[fltsim]\n"
+           "fallback.1=..\\..\\FBW A380 EKNA6CMN\\texture.EKNA6CMN\n")
+    pkg = make_old_package(tmp_path, suffixes=("A7APC",), with_common=False,
+                           texture_cfg=cfg)
+    result = scan_package(pkg, known_containers={"FBW A380 EKNA6CMN"})
+    assert result.variants[0].missing_fallbacks == []
+
+
+def test_container_names_indexes_every_package_in_the_batch(tmp_path):
+    parent = tmp_path / "in"
+    parent.mkdir()
+    make_old_package(parent, suffixes=("A7APC",), name="tail")
+    make_old_package(parent, suffixes=(), depot_suffixes=("CMN",), name="commons")
+    names = container_names([parent / "tail", parent / "commons"])
+    assert {"A388_TST_A7APC", "A388_TST_CMN"} <= names
+
+
+def test_fallback_inside_the_own_container_is_not_reported(tmp_path):
+    """`fallback=..\\texture` is boilerplate pointing back into the variant's own
+    container - absent by design and not a cross-package reference."""
+    cfg = "[fltsim]\nfallback.1=..\\texture\n"
+    pkg = make_old_package(tmp_path, suffixes=("A7APC",), with_common=False,
+                           texture_cfg=cfg)
+    assert scan_package(pkg).variants[0].missing_fallbacks == []
+
+
+def test_resolvable_and_sim_level_fallbacks_are_not_reported(tmp_path):
+    """Common Textures exists in the package, FlyByWire_A380_842 ships with the
+    A380X itself and ..\\..\\..\\..\\texture is sim level - none are a problem."""
+    pkg = make_old_package(tmp_path, suffixes=("A7APC",), with_common=True)
+    result = scan_package(pkg)
+    assert result.variants[0].missing_fallbacks == []
+
+
+def test_rejection_message_for_already_converted_package(tmp_path):
+    """A package that is already in MSFS 2024 format must say so rather than
+    claiming no A380X livery was detected."""
+    pkg = tmp_path / "FlyByWire_A380X-British_Airways_G-XLEF-2024"
+    livery = (pkg / "SimObjects" / "Airplanes" / "FlyByWire_A380X" / "liveries"
+              / "flybywire" / "FlyByWire_A380_842_BAW")
+    (livery / "texture").mkdir(parents=True)
+    (livery / "livery.cfg").write_text("[GENERAL]\nName = \"BA\"\n")
+    with pytest.raises(NotAnA380XPackageError, match="already in MSFS 2024"):
+        scan_package(pkg)
+
+
+def test_rejection_message_for_package_without_any_aircraft_cfg(tmp_path):
+    pkg = tmp_path / "junk"
+    (pkg / "SimObjects" / "AirPlanes" / "SomeFolder").mkdir(parents=True)
+    with pytest.raises(NotAnA380XPackageError, match="no aircraft.cfg"):
         scan_package(pkg)
 
 

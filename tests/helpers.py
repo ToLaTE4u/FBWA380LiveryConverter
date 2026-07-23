@@ -29,6 +29,7 @@ model = "{model}" ; model folder
 atc_id = "A380X" ; tail number
 atc_airline = "Test Airways" ; airline name
 icao_airline = "TST"
+isUserSelectable = {selectable}
 """
 
 OLD_TEXTURE_CFG = """[fltsim]
@@ -37,22 +38,38 @@ fallback.2=..\\..\\FlyByWire_A380_842\\texture
 fallback.3=..\\..\\..\\..\\texture
 """
 
+# Without a Common Textures folder the package must not claim to fall back to
+# one - that would be a genuinely broken source package, not a neutral fixture.
+OLD_TEXTURE_CFG_NO_COMMON = """[fltsim]
+fallback.1=..\\..\\FlyByWire_A380_842\\texture
+fallback.2=..\\..\\..\\..\\texture
+"""
+
 
 def make_old_package(root, suffixes=("A7APC", "A7APD"), dds_bytes=b"",
-                     with_common=True, with_model=True, name="Old Test Livery"):
+                     with_common=True, with_model=True, name="Old Test Livery",
+                     depot_suffixes=(), texture_cfg=None):
+    """Build an MSFS 2020 style package.
+
+    depot_suffixes get isUserSelectable = 0, i.e. they are shared texture
+    depots that other liveries fall back to rather than selectable liveries.
+    """
     pkg = Path(root) / name
     airplanes = pkg / "SimObjects" / "AirPlanes"
-    for suffix in suffixes:
+    for suffix in tuple(suffixes) + tuple(depot_suffixes):
         variant = airplanes / f"A388_TST_{suffix}"
         tex = variant / f"TEXTURE.{suffix}"
         tex.mkdir(parents=True)
         model_value = "TST" if with_model else ""
-        (variant / "aircraft.cfg").write_text(
-            AIRCRAFT_CFG_TEMPLATE.format(suffix=suffix, model=model_value))
+        (variant / "aircraft.cfg").write_text(AIRCRAFT_CFG_TEMPLATE.format(
+            suffix=suffix, model=model_value,
+            selectable=0 if suffix in depot_suffixes else 1))
         if with_model:
             (variant / "MODEL.TST").mkdir()
             (variant / "MODEL.TST" / "A380.xml").write_text("<Model/>")
-        (tex / "texture.CFG").write_text(OLD_TEXTURE_CFG)
+        default_cfg = OLD_TEXTURE_CFG if with_common else OLD_TEXTURE_CFG_NO_COMMON
+        (tex / "texture.CFG").write_text(
+            default_cfg if texture_cfg is None else texture_cfg)
         (tex / "A380X_FUSE1_ALBEDO.PNG.DDS").write_bytes(dds_bytes)
         (tex / "A380X_FUSE1_ALBEDO.PNG.DDS.json").write_text(
             '{"Version":2,"SourceFileDate":1,"Flags":["FL_BITMAP_COMPRESSION","FL_BITMAP_MIPMAP"]}')
