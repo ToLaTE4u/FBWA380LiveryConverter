@@ -38,12 +38,14 @@ The old livery must be **extracted** first — point the tool at the folder, not
 ## How to use it (command line)
 
 ```
-A380XLiveryConverter.exe "C:\path\to\input" -o "C:\path\to\Community" [--yes] [--dry-run] [--verbose]
+A380XLiveryConverter.exe "C:\path\to\input" -o "C:\path\to\Community" [--yes] [--dry-run] [--verbose] [--workers N]
 ```
 
 The tool first shows a plan of what it found (packages, liveries, anything
 skipped) and asks for confirmation. Pass `--yes` to skip the prompt (for
 scripts), or `--dry-run` to show the plan and exit without converting.
+`--workers N` (or `-w N`) sets the number of parallel texture conversions
+(default: 2).
 
 `input` may be a single extracted livery package **or** a folder containing
 several packages — the tool detects which and converts them all, writing one
