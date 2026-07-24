@@ -71,7 +71,7 @@ def test_cancel_button_enabled_while_analyzing(monkeypatch):
         started = threading.Event()
         release = threading.Event()
 
-        def blocking_plan(input_dir, output_dir, progress=None, cancel=None):
+        def blocking_plan(input_dir, output_dir, progress=None, cancel=None, max_workers=None):
             started.set()
             release.wait(5)
             raise gui_mod.ConversionCancelled("cancelled")

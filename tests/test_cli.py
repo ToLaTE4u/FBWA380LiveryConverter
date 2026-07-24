@@ -87,7 +87,7 @@ def test_all_packages_failing_at_runtime_exits_2(tmp_path, monkeypatch):
     failure reason - not a silent "Converted textures: 0, skipped: 0" success."""
     pkg = _single(tmp_path)
 
-    def fake_execute_plan(plan, progress=None):
+    def fake_execute_plan(plan, progress=None, cancel=None, max_workers=None):
         return BatchResult(results=[], skipped=[(Path("pkgX"), "conversion failed: boom")])
 
     monkeypatch.setattr("a380x_livery_converter.cli.execute_plan", fake_execute_plan)
@@ -104,7 +104,7 @@ def test_partial_runtime_failure_exits_1_and_reports_skipped(tmp_path, monkeypat
     ok_result = ConversionResult(output_root=tmp_path / "out" / "pkgY_ok",
                                  converted=1, skipped=0, warnings=[])
 
-    def fake_execute_plan(plan, progress=None):
+    def fake_execute_plan(plan, progress=None, cancel=None, max_workers=None):
         return BatchResult(results=[ok_result],
                            skipped=[(Path("pkgY"), "conversion failed: boom")])
 

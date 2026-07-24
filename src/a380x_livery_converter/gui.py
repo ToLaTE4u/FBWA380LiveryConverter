@@ -10,7 +10,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 from a380x_livery_converter.converter import (
-    ConversionCancelled, execute_plan, plan_conversion,
+    DEFAULT_MAX_WORKERS, ConversionCancelled, execute_plan, plan_conversion,
 )
 
 RELEASES_URL = "https://github.com/ToLaTE4u/FBWA380LiveryConverter/releases/latest"
@@ -55,6 +55,11 @@ class ConverterApp:
         self.updates_button = ttk.Button(buttons, text="Check for Updates",
                                          command=open_releases_page)
         self.updates_button.pack(side="right")
+        self.workers_var = tk.IntVar(value=DEFAULT_MAX_WORKERS)
+        self.workers_spin = ttk.Spinbox(buttons, from_=1, to=64,
+                                        textvariable=self.workers_var, width=4)
+        self.workers_spin.pack(side="right")
+        ttk.Label(buttons, text="Workers:").pack(side="right", padx=(12, 0))
 
         self.progressbar = ttk.Progressbar(frame, maximum=100)
         self.progressbar.grid(row=3, column=0, columnspan=3, sticky="ew")
@@ -80,17 +85,19 @@ class ConverterApp:
         self._cancel.clear()
         self.progressbar.config(value=0)
         self._set_buttons(analyze=False, convert=False, cancel=True)
-        self._append_log("Analyzing... (reading every texture, this can take a while)")
+        workers = self.workers_var.get()
+        self._append_log(f"Analyzing with {workers} worker(s)...")
         threading.Thread(target=self._do_analyze,
-                         args=(Path(input_dir), Path(output_dir)), daemon=True).start()
+                         args=(Path(input_dir), Path(output_dir), workers),
+                         daemon=True).start()
         self.root.after(100, self._poll)
 
-    def _do_analyze(self, input_dir, output_dir):
+    def _do_analyze(self, input_dir, output_dir, max_workers):
         try:
             plan = plan_conversion(
                 input_dir, output_dir,
                 progress=lambda d, t, m: self.queue.put(("progress", d, t, m)),
-                cancel=self._cancel)
+                cancel=self._cancel, max_workers=max_workers)
             self.queue.put(("plan", plan))
         except ConversionCancelled:
             self.queue.put(("cancelled",))
@@ -110,14 +117,16 @@ class ConverterApp:
         self._cancel.clear()
         self._set_buttons(analyze=False, convert=False, cancel=True)
         self.progressbar.config(value=0)
-        threading.Thread(target=self._do_convert, args=(self._plan,), daemon=True).start()
+        workers = self.workers_var.get()
+        threading.Thread(target=self._do_convert, args=(self._plan, workers),
+                         daemon=True).start()
         self.root.after(100, self._poll)
 
-    def _do_convert(self, plan):
+    def _do_convert(self, plan, max_workers):
         try:
             result = execute_plan(
                 plan, progress=lambda d, t, m: self.queue.put(("progress", d, t, m)),
-                cancel=self._cancel)
+                cancel=self._cancel, max_workers=max_workers)
             self.queue.put(("done", result))
         except ConversionCancelled:
             self.queue.put(("cancelled",))

@@ -407,7 +407,7 @@ def _batch(tmp_path, names=("pkgA", "pkgB")):
 
 def test_default_max_workers_is_two(tmp_path):
     """texconv is internally multithreaded: throughput saturates at 2 workers
-    while 8 triple the peak RAM and starve the rest of the machine."""
+    while more triple the peak RAM and starve the rest of the machine."""
     assert Converter(tmp_path, tmp_path).max_workers == 2
 
 

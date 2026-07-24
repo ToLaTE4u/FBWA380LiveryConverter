@@ -18,10 +18,6 @@ from a380x_livery_converter.texture.pipeline import convert_texture
 
 ProgressCallback = Callable[[int, int, str], None]
 
-# texconv.exe compresses BC7 with its own thread pool, so throughput saturates
-# at two concurrent jobs. Measured on 8K textures (12 cores): 1 worker 116 s,
-# 2 workers 66 s, 4 workers 70 s, 8 workers 68 s - beyond 2 the extra processes
-# buy nothing but triple the peak RAM (~6 GB) and leave no core for the UI.
 DEFAULT_MAX_WORKERS = 2
 
 
@@ -377,7 +373,8 @@ class BatchResult:
 
 def plan_conversion(input_dir: Path, output_dir: Path,
                     progress: ProgressCallback | None = None,
-                    cancel: threading.Event | None = None) -> ConversionPlan:
+                    cancel: threading.Event | None = None,
+                    max_workers: int | None = None) -> ConversionPlan:
     input_dir, output_dir = Path(input_dir), Path(output_dir)
     report = progress or (lambda done, total, msg: None)
     roots, skipped = find_packages(input_dir)
@@ -390,7 +387,8 @@ def plan_conversion(input_dir: Path, output_dir: Path,
             raise ConversionCancelled("analysis cancelled")
         try:
             packages.append(Converter(root, output_dir, cancel=cancel,
-                                      known_containers=known).plan())
+                                      known_containers=known,
+                                      max_workers=max_workers).plan())
         except ConversionCancelled:
             raise
         except NotAnA380XPackageError as exc:
@@ -425,7 +423,8 @@ def _dedupe_output_names(packages: list[PackagePlan]) -> None:
 
 def execute_plan(plan: ConversionPlan,
                  progress: ProgressCallback | None = None,
-                 cancel: threading.Event | None = None) -> BatchResult:
+                 cancel: threading.Event | None = None,
+                 max_workers: int | None = None) -> BatchResult:
     report = progress or (lambda done, total, msg: None)
     total = sum(p.texture_count + len(p.livery_names) + 2 for p in plan.packages) or 1
     base = 0
@@ -437,7 +436,8 @@ def execute_plan(plan: ConversionPlan,
         def shim(done, _total, msg, _base=base, _name=pkg.output_name):
             report(_base + done, total, f"[{_name}] {msg}")
         converter = pkg.converter or Converter(pkg.source, plan.output_dir,
-                                               output_name=pkg.output_name)
+                                               output_name=pkg.output_name,
+                                               max_workers=max_workers)
         converter.progress = shim
         converter.cancel = cancel
         try:

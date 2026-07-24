@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 
 from a380x_livery_converter.converter import (
-    ConversionPlan, execute_plan, plan_conversion,
+    DEFAULT_MAX_WORKERS, ConversionPlan, execute_plan, plan_conversion,
 )
 
 app = typer.Typer(add_completion=False,
@@ -36,13 +36,16 @@ def convert(
     force: bool = typer.Option(False, "--force", "--overwrite",
                                help="Overwrite existing packages without asking"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show per-file progress"),
+    workers: int = typer.Option(DEFAULT_MAX_WORKERS, "--workers", "-w", min=1,
+                                help="Parallel texconv workers"),
 ) -> None:
     def progress(done: int, total: int, message: str) -> None:
         if verbose:
             typer.echo(f"[{done}/{total}] {message}")
 
+    typer.echo(f"Using {workers} worker(s)")
     try:
-        plan = plan_conversion(input_dir, output, progress=progress)
+        plan = plan_conversion(input_dir, output, progress=progress, max_workers=workers)
     except Exception as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2)
@@ -65,7 +68,7 @@ def convert(
         raise typer.Exit(0)
 
     try:
-        result = execute_plan(plan, progress=progress)
+        result = execute_plan(plan, progress=progress, max_workers=workers)
     except Exception as exc:
         typer.secho(f"Unexpected error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2)

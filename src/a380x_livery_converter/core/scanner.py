@@ -195,7 +195,10 @@ def scan_package(root: Path, known_containers: set[str] | None = None) -> OldPac
                                        known_containers)
                     if selectable else []),
             )
-            (variants if selectable else depots).append(variant)
+            if selectable:
+                variants.append(variant)
+            else:
+                depots.append(variant)
     # A depot-only package carries no livery of its own, but it is exactly what
     # the sibling packages fall back to, so it still has textures to convert.
     if not variants and not depots:
